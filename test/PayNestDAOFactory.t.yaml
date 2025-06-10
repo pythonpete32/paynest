@@ -1,0 +1,85 @@
+PayNestDAOFactoryTest:
+  - describe: "Factory Construction"
+    - given: "constructor parameters"
+      and:
+      - when: "all parameters are valid"
+        then:
+        - it: "should store immutable references correctly"
+        - it: "should not revert"
+
+      - when: "address registry is zero"
+        then:
+        - it: "should revert with AdminAddressZero"
+
+      - when: "dao factory is zero"
+        then:
+        - it: "should revert with AdminAddressZero"
+
+      - when: "admin plugin repo is zero"
+        then:
+        - it: "should revert with AdminAddressZero"
+
+      - when: "payments plugin repo is zero"
+        then:
+        - it: "should revert with AdminAddressZero"
+
+  - describe: "PayNest DAO Creation"
+    - given: "factory is properly configured"
+      and:
+      - when: "creating DAO with valid parameters"
+        then:
+        - it: "should create a DAO successfully"
+        - it: "should install admin plugin"
+        - it: "should install payments plugin"
+        - it: "should store DAO info correctly"
+        - it: "should add DAO to tracking array"
+        - it: "should emit PayNestDAOCreated event"
+        - it: "should return correct addresses"
+        - it: "should set up permissions correctly"
+
+      - when: "admin address is zero"
+        then:
+        - it: "should revert with AdminAddressZero"
+
+      - when: "DAO name is empty"
+        then:
+        - it: "should revert with DAONameEmpty"
+
+      - when: "DAO creation fails"
+        then:
+        - it: "should revert with DAOCreationFailed"
+
+      - when: "plugin installation fails"
+        then:
+        - it: "should revert with PluginInstallationFailed"
+
+  - describe: "View Functions"
+    - given: "factory has been used"
+      and:
+      - when: "getting address registry"
+        then:
+        - it: "should return the correct address registry"
+
+      - when: "getting DAO info for existing DAO"
+        then:
+        - it: "should return correct DAO info"
+
+      - when: "getting DAO info for non-existent DAO"
+        then:
+        - it: "should return default values"
+
+      - when: "getting created DAOs count with no DAOs"
+        then:
+        - it: "should return zero"
+
+      - when: "getting created DAOs count with existing DAOs"
+        then:
+        - it: "should return correct count"
+
+      - when: "getting created DAO by valid index"
+        then:
+        - it: "should return correct DAO address"
+
+      - when: "getting created DAO by invalid index"
+        then:
+        - it: "should revert"
