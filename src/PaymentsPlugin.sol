@@ -32,6 +32,11 @@ contract PaymentsPlugin is PluginUUPSUpgradeable, IPayments {
     /// @notice Storage gap for upgrades
     uint256[46] private __gap;
 
+    /// @notice Constructor disables initializers for the implementation contract
+    constructor() {
+        _disableInitializers();
+    }
+
     /// @notice Custom errors for gas-efficient error handling
     error UsernameNotFound();
     error StreamNotActive();
@@ -163,11 +168,12 @@ contract PaymentsPlugin is PluginUUPSUpgradeable, IPayments {
     /// @param username The username to request payout for
     /// @return amount The amount paid out
     function requestStreamPayout(string calldata username) external payable returns (uint256 amount) {
+        // Resolve username first (will revert with UsernameNotFound if invalid)
+        address recipient = _resolveUsername(username);
+
+        // Then check if stream is active
         Stream storage stream = streams[username];
         if (!stream.active) revert StreamNotActive();
-
-        // Resolve username to current address
-        address recipient = _resolveUsername(username);
 
         // Get LlamaPay contract
         address llamaPayContract = tokenToLlamaPay[stream.token];

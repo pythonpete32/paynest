@@ -3,201 +3,22 @@ pragma solidity ^0.8.28;
 
 import {Test} from "forge-std/Test.sol";
 import {PaymentsPlugin} from "../src/PaymentsPlugin.sol";
-import {PaymentsPluginSetup} from "../src/setup/PaymentsPluginSetup.sol";
 import {IPayments} from "../src/interfaces/IPayments.sol";
-import {IRegistry} from "../src/interfaces/IRegistry.sol";
 import {AddressRegistry} from "../src/AddressRegistry.sol";
-
-contract MockLlamaPayFactory {
-    mapping(address => address) public tokenToContract;
-    mapping(address => bool) public isDeployed;
-
-    function createLlamaPayContract(address _token) external returns (address llamaPayContract) {
-        llamaPayContract = address(new MockLlamaPay(_token));
-        tokenToContract[_token] = llamaPayContract;
-        isDeployed[llamaPayContract] = true;
-        return llamaPayContract;
-    }
-
-    function getLlamaPayContractByToken(address _token)
-        external
-        view
-        returns (address predictedAddress, bool deployed)
-    {
-        predictedAddress = tokenToContract[_token];
-        deployed = isDeployed[predictedAddress];
-    }
-}
-
-contract MockLlamaPay {
-    address public token;
-    uint256 public constant DECIMALS_DIVISOR = 1e14; // Assume 6 decimal token for simplicity
-
-    mapping(address => uint256) public balances;
-    mapping(bytes32 => uint256) public streamToStart;
-
-    event StreamCreated(address indexed from, address indexed to, uint216 amountPerSec);
-    event StreamCancelled(address indexed from, address indexed to, uint216 amountPerSec);
-    event Withdraw(address indexed from, address indexed to, uint216 amountPerSec, uint256 amount);
-
-    constructor(address _token) {
-        token = _token;
-    }
-
-    function deposit(uint256 amount) external {
-        // Mock transfer from sender
-        balances[msg.sender] += amount;
-    }
-
-    function createStreamWithReason(address to, uint216 amountPerSec, string calldata reason) external {
-        bytes32 streamId = keccak256(abi.encodePacked(msg.sender, to, amountPerSec));
-        streamToStart[streamId] = block.timestamp;
-        emit StreamCreated(msg.sender, to, amountPerSec);
-    }
-
-    function createStream(address to, uint216 amountPerSec) external {
-        bytes32 streamId = keccak256(abi.encodePacked(msg.sender, to, amountPerSec));
-        streamToStart[streamId] = block.timestamp;
-        emit StreamCreated(msg.sender, to, amountPerSec);
-    }
-
-    function cancelStream(address to, uint216 amountPerSec) external {
-        bytes32 streamId = keccak256(abi.encodePacked(msg.sender, to, amountPerSec));
-        delete streamToStart[streamId];
-        emit StreamCancelled(msg.sender, to, amountPerSec);
-    }
-
-    function withdraw(address from, address to, uint216 amountPerSec) external {
-        // Calculate withdrawable amount based on time elapsed
-        bytes32 streamId = keccak256(abi.encodePacked(from, to, amountPerSec));
-        uint256 startTime = streamToStart[streamId];
-        require(startTime > 0, "Stream not found");
-
-        uint256 elapsed = block.timestamp - startTime;
-        uint256 withdrawableAmount = (elapsed * amountPerSec) / DECIMALS_DIVISOR;
-
-        // Update start time to prevent double withdrawal
-        streamToStart[streamId] = block.timestamp;
-
-        emit Withdraw(from, to, amountPerSec, withdrawableAmount);
-    }
-
-    function withdrawable(address from, address to, uint216 amountPerSec)
-        external
-        view
-        returns (uint256 withdrawableAmount, uint256 lastUpdate, uint256 owed)
-    {
-        bytes32 streamId = keccak256(abi.encodePacked(from, to, amountPerSec));
-        uint256 startTime = streamToStart[streamId];
-
-        if (startTime == 0) return (0, 0, 0);
-
-        uint256 elapsed = block.timestamp - startTime;
-        withdrawableAmount = (elapsed * amountPerSec) / DECIMALS_DIVISOR;
-        lastUpdate = startTime;
-        owed = 0; // Simplify for testing
-    }
-
-    function withdrawPayerAll() external {
-        balances[msg.sender] = 0;
-    }
-
-    function getStreamId(address from, address to, uint216 amountPerSec) external pure returns (bytes32) {
-        return keccak256(abi.encodePacked(from, to, amountPerSec));
-    }
-}
-
-contract MockERC20 {
-    mapping(address => uint256) public balanceOf;
-    mapping(address => mapping(address => uint256)) public allowance;
-
-    uint8 public decimals;
-    string public name;
-    string public symbol;
-
-    constructor(string memory _name, string memory _symbol, uint8 _decimals) {
-        name = _name;
-        symbol = _symbol;
-        decimals = _decimals;
-    }
-
-    function mint(address to, uint256 amount) external {
-        balanceOf[to] += amount;
-    }
-
-    function approve(address spender, uint256 amount) external returns (bool) {
-        allowance[msg.sender][spender] = amount;
-        return true;
-    }
-
-    function transfer(address to, uint256 amount) external returns (bool) {
-        require(balanceOf[msg.sender] >= amount, "Insufficient balance");
-        balanceOf[msg.sender] -= amount;
-        balanceOf[to] += amount;
-        return true;
-    }
-
-    function transferFrom(address from, address to, uint256 amount) external returns (bool) {
-        require(balanceOf[from] >= amount, "Insufficient balance");
-        require(allowance[from][msg.sender] >= amount, "Insufficient allowance");
-
-        balanceOf[from] -= amount;
-        balanceOf[to] += amount;
-        allowance[from][msg.sender] -= amount;
-        return true;
-    }
-}
-
-contract MockDAO {
-    bytes32 public constant EXECUTE_PERMISSION_ID = keccak256("EXECUTE_PERMISSION");
-
-    mapping(address => mapping(address => mapping(bytes32 => bool))) public hasPermission;
-
-    function grant(address where, address who, bytes32 permissionId) external {
-        hasPermission[where][who][permissionId] = true;
-    }
-
-    function execute(
-        bytes32, /* callId */
-        address[] memory actions,
-        uint256[] memory values,
-        bytes[] memory calldatas,
-        uint256 /* allowFailureMap */
-    ) external returns (bytes[] memory execResults) {
-        execResults = new bytes[](actions.length);
-
-        for (uint256 i = 0; i < actions.length; i++) {
-            (bool success, bytes memory result) = actions[i].call{value: values[i]}(calldatas[i]);
-            require(success, "Action execution failed");
-            execResults[i] = result;
-        }
-    }
-
-    function execute(bytes32, /* callId */ Action[] memory actions, uint256 /* allowFailureMap */ )
-        external
-        returns (bytes[] memory execResults)
-    {
-        execResults = new bytes[](actions.length);
-
-        for (uint256 i = 0; i < actions.length; i++) {
-            (bool success, bytes memory result) = actions[i].to.call{value: actions[i].value}(actions[i].data);
-            require(success, "Action execution failed");
-            execResults[i] = result;
-        }
-    }
-}
-
-import {DAO, IDAO, Action} from "@aragon/osx/core/dao/DAO.sol";
+import {PaymentsBuilder, MockLlamaPayFactory, MockERC20} from "./builders/PaymentsBuilder.sol";
+import {DAO, IDAO} from "@aragon/osx/core/dao/DAO.sol";
+import {DaoUnauthorized} from "@aragon/osx-commons-contracts/src/permission/auth/auth.sol";
+import {ProxyLib} from "@aragon/osx-commons-contracts/src/utils/deployment/ProxyLib.sol";
 
 contract PaymentsPluginTest is Test {
+    DAO public dao;
     PaymentsPlugin public plugin;
-    PaymentsPluginSetup public pluginSetup;
     AddressRegistry public registry;
     MockLlamaPayFactory public llamaPayFactory;
     MockERC20 public token;
-    MockDAO public dao;
 
     address alice = vm.addr(1);
+    address bob = vm.addr(2);
 
     string constant TEST_USERNAME = "alice";
     uint256 constant STREAM_AMOUNT = 1000e6; // 1000 USDC
@@ -210,33 +31,26 @@ contract PaymentsPluginTest is Test {
     event StreamPayout(string indexed username, address indexed token, uint256 amount);
 
     function setUp() public {
-        // Deploy contracts
-        registry = new AddressRegistry();
-        llamaPayFactory = new MockLlamaPayFactory();
-        token = new MockERC20("Test USDC", "TUSDC", 6);
-        dao = new MockDAO();
+        // Use PaymentsBuilder to create properly configured DAO and plugin
+        (dao, plugin, registry, llamaPayFactory, token) = new PaymentsBuilder().withDaoOwner(address(this)).withManagers(
+            _getManagersArray()
+        ) // Make test contract the DAO owner
+                // Set test contract as manager
+            .build();
 
-        // Deploy plugin pluginSetup and initialize plugin
-        pluginSetup = new PaymentsPluginSetup();
-
-        bytes memory installationParams = pluginSetup.encodeInstallationParams(
-            address(this), // manager
-            address(registry),
-            address(llamaPayFactory)
-        );
-
-        (address pluginAddress,) = pluginSetup.prepareInstallation(address(dao), installationParams);
-        plugin = PaymentsPlugin(pluginAddress);
-
-        // Setup test data
+        // Setup test data - alice claims a username
         vm.prank(alice);
         registry.claimUsername(TEST_USERNAME);
 
-        // Give DAO some tokens
-        token.mint(address(dao), 10000e6);
+        // Approve DAO to spend tokens (simulate DAO treasury having approval)
+        vm.prank(address(dao));
+        token.approve(address(plugin), type(uint256).max);
+    }
 
-        // Grant execute permission to plugin
-        dao.grant(address(dao), address(plugin), dao.EXECUTE_PERMISSION_ID());
+    function _getManagersArray() internal view returns (address[] memory) {
+        address[] memory managers = new address[](1);
+        managers[0] = address(this); // Make the test contract a manager
+        return managers;
     }
 
     // =========================================================================
@@ -256,17 +70,26 @@ contract PaymentsPluginTest is Test {
     }
 
     function test_initialize_ShouldRevertWithInvalidTokenForZeroRegistry() public {
-        PaymentsPlugin newPlugin = new PaymentsPlugin();
+        // Deploy fresh implementation
+        PaymentsPlugin implementation = new PaymentsPlugin();
 
+        // Create proxy with invalid registry (zero address)
         vm.expectRevert(PaymentsPlugin.InvalidToken.selector);
-        newPlugin.initialize(IDAO(address(dao)), address(0), address(llamaPayFactory));
+        ProxyLib.deployUUPSProxy(
+            address(implementation),
+            abi.encodeCall(PaymentsPlugin.initialize, (dao, address(0), address(llamaPayFactory)))
+        );
     }
 
     function test_initialize_ShouldRevertWithInvalidTokenForZeroFactory() public {
-        PaymentsPlugin newPlugin = new PaymentsPlugin();
+        // Deploy fresh implementation
+        PaymentsPlugin implementation = new PaymentsPlugin();
 
+        // Create proxy with invalid factory (zero address)
         vm.expectRevert(PaymentsPlugin.InvalidToken.selector);
-        newPlugin.initialize(IDAO(address(dao)), address(registry), address(0));
+        ProxyLib.deployUUPSProxy(
+            address(implementation), abi.encodeCall(PaymentsPlugin.initialize, (dao, address(registry), address(0)))
+        );
     }
 
     // =========================================================================
@@ -292,6 +115,18 @@ contract PaymentsPluginTest is Test {
         emit StreamActive(TEST_USERNAME, address(token), endTime, STREAM_AMOUNT);
 
         plugin.createStream(TEST_USERNAME, STREAM_AMOUNT, address(token), endTime);
+    }
+
+    function test_createStream_ShouldStoreStreamMetadataCorrectly() public {
+        uint40 endTime = uint40(block.timestamp + STREAM_DURATION);
+
+        plugin.createStream(TEST_USERNAME, STREAM_AMOUNT, address(token), endTime);
+
+        IPayments.Stream memory stream = plugin.getStream(TEST_USERNAME);
+        assertEq(stream.token, address(token));
+        assertEq(stream.endDate, endTime);
+        assertTrue(stream.active);
+        assertEq(stream.lastPayout, uint40(block.timestamp));
     }
 
     function test_createStream_ShouldRevertWithInvalidAmountForZeroAmount() public {
@@ -349,6 +184,16 @@ contract PaymentsPluginTest is Test {
         emit PaymentStreamCancelled(TEST_USERNAME, address(token));
 
         plugin.cancelStream(TEST_USERNAME);
+    }
+
+    function test_cancelStream_ShouldMarkStreamAsInactive() public {
+        uint40 endTime = uint40(block.timestamp + STREAM_DURATION);
+        plugin.createStream(TEST_USERNAME, STREAM_AMOUNT, address(token), endTime);
+
+        plugin.cancelStream(TEST_USERNAME);
+
+        IPayments.Stream memory stream = plugin.getStream(TEST_USERNAME);
+        assertFalse(stream.active);
     }
 
     function test_cancelStream_ShouldRevertWithStreamNotActive() public {
@@ -413,6 +258,19 @@ contract PaymentsPluginTest is Test {
         plugin.requestStreamPayout(TEST_USERNAME);
     }
 
+    function test_requestStreamPayout_ShouldUpdateLastPayoutTimestamp() public {
+        uint40 endTime = uint40(block.timestamp + STREAM_DURATION);
+        plugin.createStream(TEST_USERNAME, STREAM_AMOUNT, address(token), endTime);
+
+        // Fast forward some time
+        vm.warp(block.timestamp + 1 days);
+
+        plugin.requestStreamPayout(TEST_USERNAME);
+
+        IPayments.Stream memory stream = plugin.getStream(TEST_USERNAME);
+        assertEq(stream.lastPayout, uint40(block.timestamp));
+    }
+
     function test_requestStreamPayout_ShouldRevertWithStreamNotActive() public {
         vm.expectRevert(PaymentsPlugin.StreamNotActive.selector);
         plugin.requestStreamPayout(TEST_USERNAME);
@@ -424,6 +282,37 @@ contract PaymentsPluginTest is Test {
 
         vm.expectRevert(PaymentsPlugin.UsernameNotFound.selector);
         plugin.requestStreamPayout("nonexistent");
+    }
+
+    // =========================================================================
+    // Permission Tests
+    // =========================================================================
+
+    function test_createStream_ShouldRevertWithoutManagerPermission() public {
+        uint40 endTime = uint40(block.timestamp + STREAM_DURATION);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                DaoUnauthorized.selector, address(dao), address(plugin), alice, plugin.MANAGER_PERMISSION_ID()
+            )
+        );
+
+        vm.prank(alice);
+        plugin.createStream(TEST_USERNAME, STREAM_AMOUNT, address(token), endTime);
+    }
+
+    function test_cancelStream_ShouldRevertWithoutManagerPermission() public {
+        uint40 endTime = uint40(block.timestamp + STREAM_DURATION);
+        plugin.createStream(TEST_USERNAME, STREAM_AMOUNT, address(token), endTime);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                DaoUnauthorized.selector, address(dao), address(plugin), alice, plugin.MANAGER_PERMISSION_ID()
+            )
+        );
+
+        vm.prank(alice);
+        plugin.cancelStream(TEST_USERNAME);
     }
 
     // =========================================================================
