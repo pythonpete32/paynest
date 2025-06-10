@@ -120,12 +120,8 @@ test-coverage: report/index.html ## Generate an HTML coverage report under ./rep
 	@which xdg-open > /dev/null && xdg-open report/index.html || true
 
 .PHONY: test-coverage-summary
-test-coverage-summary: ## Generate coverage summary for PayNest contracts only
-	@echo "PayNest Contract Coverage Summary (unit tests only):"
-	@echo "======================================================"
-	@forge coverage --no-match-path "./test/fork-tests/*" --report summary | grep -E "(AddressRegistry|PaymentsPlugin)" || echo "No PayNest contract coverage found"
-	@echo ""
-	@echo "Legend: [Lines] [Statements] [Branches] [Functions]"
+test-coverage-summary: ## Generate coverage summary for all contracts
+	@forge coverage --report summary
 
 report/index.html: lcov.info
 	genhtml $^ -o report
