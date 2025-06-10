@@ -102,13 +102,18 @@ contract PaymentsForkBuilder is ForkTestBase {
         });
 
         // DAO settings
-        DAOFactory.DAOSettings memory daoSettings =
-            DAOFactory.DAOSettings({trustedForwarder: address(0), daoURI: "http://paynest/", subdomain: "", metadata: ""});
+        DAOFactory.DAOSettings memory daoSettings = DAOFactory.DAOSettings({
+            trustedForwarder: address(0),
+            daoURI: "http://paynest/",
+            subdomain: "",
+            metadata: ""
+        });
 
         // Define what plugin(s) to install and give the corresponding parameters
         DAOFactory.PluginSettings[] memory installSettings = new DAOFactory.PluginSettings[](1);
 
-        bytes memory pluginInstallData = pluginSetup.encodeInstallationParams(manager, registryAddress, llamaPayFactoryAddress);
+        bytes memory pluginInstallData =
+            pluginSetup.encodeInstallationParams(manager, registryAddress, llamaPayFactoryAddress);
         installSettings[0] = DAOFactory.PluginSettings({
             pluginSetupRef: PluginSetupRef({versionTag: getLatestTag(pluginRepo), pluginSetupRepo: pluginRepo}),
             data: pluginInstallData
