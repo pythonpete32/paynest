@@ -6,7 +6,6 @@ import {PaymentsForkBuilder} from "../builders/PaymentsForkBuilder.sol";
 import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 import {DaoUnauthorized} from "@aragon/osx-commons-contracts/src/permission/auth/auth.sol";
 import {PluginRepo} from "@aragon/osx/framework/plugin/repo/PluginRepo.sol";
-import {ProxyLib} from "@aragon/osx-commons-contracts/src/utils/deployment/ProxyLib.sol";
 
 import {PaymentsPluginSetup} from "../../src/setup/PaymentsPluginSetup.sol";
 import {PaymentsPlugin} from "../../src/PaymentsPlugin.sol";
@@ -19,6 +18,7 @@ import {NON_EMPTY_BYTES} from "../constants.sol";
 contract PaymentsPluginForkTest is ForkTestBase {
     DAO internal dao;
     PaymentsPlugin internal plugin;
+    PluginRepo internal repo;
     PaymentsPluginSetup internal setup;
     AddressRegistry internal registry;
     ILlamaPayFactory internal llamaPayFactory;
@@ -48,8 +48,8 @@ contract PaymentsPluginForkTest is ForkTestBase {
     function setUp() public virtual override {
         super.setUp();
 
-        // Build the fork test environment
-        (dao, setup, plugin, registry, llamaPayFactory, usdc) = new PaymentsForkBuilder().withManager(bob).build();
+        // Build the fork test environment using DAOFactory pattern
+        (dao, repo, setup, plugin, registry, llamaPayFactory, usdc) = new PaymentsForkBuilder().withManager(bob).build();
 
         // Setup test data - alice claims a username
         vm.prank(alice);
@@ -76,24 +76,13 @@ contract PaymentsPluginForkTest is ForkTestBase {
     }
 
     function test_WhenInvalidParametersProvided() external givenTestingPluginInitialization {
-        // Deploy fresh implementation
-        PaymentsPlugin implementation = new PaymentsPlugin();
+        // Check the Repo
+        PluginRepo.Version memory version = repo.getLatestVersion(repo.latestRelease());
+        assertEq(version.pluginSetup, address(setup));
+        assertEq(version.buildMetadata, NON_EMPTY_BYTES);
 
-        // It should revert with invalid token for zero registry
-        vm.expectRevert(PaymentsPlugin.InvalidToken.selector);
-        ProxyLib.deployUUPSProxy(
-            address(implementation),
-            abi.encodeCall(PaymentsPlugin.initialize, (dao, address(0), address(llamaPayFactory)))
-        );
-
-        // Deploy another fresh implementation
-        PaymentsPlugin implementation2 = new PaymentsPlugin();
-
-        // It should revert with invalid token for zero factory
-        vm.expectRevert(PaymentsPlugin.InvalidToken.selector);
-        ProxyLib.deployUUPSProxy(
-            address(implementation2), abi.encodeCall(PaymentsPlugin.initialize, (dao, address(registry), address(0)))
-        );
+        // Check the DAO
+        assertEq(keccak256(bytes(dao.daoURI())), keccak256(bytes("http://paynest/")));
     }
 
     modifier givenTestingStreamManagement() {

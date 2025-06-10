@@ -88,35 +88,6 @@ make verify-sourcify
 - Follow existing Aragon permission patterns with `auth()` modifiers
 - Test using `SimpleBuilder` and `ForkBuilder` patterns
 
-### Testing Strategy
-
-PayNest implements a comprehensive dual-testing approach with both unit and fork testing:
-
-#### **Unit Tests (115 tests) - WITH MOCKS**
-- **Builder**: `SimpleBuilder` and `PaymentsBuilder` for creating test DAOs
-- **LlamaPay**: Mock contracts for fast, deterministic testing
-- **Tokens**: Mock USDC/ERC20 tokens with controlled behavior
-- **Aragon**: Real DAO contracts via SimpleBuilder
-- **Speed**: ~1 second (milliseconds per test)
-- **Purpose**: Fast development iteration, edge cases, gas optimization
-- **Command**: `make test` or `forge test --match-path "./test/*.sol"`
-
-#### **Fork Tests (15 tests) - ZERO MOCKING**
-- **Builder**: `PaymentsForkBuilder` bypassing DAOFactory (avoids permission issues)
-- **Network**: Real Base mainnet contracts via RPC_URL
-- **LlamaPay**: Real factory at `0x09c39B8311e4B7c678cBDAD76556877ecD3aEa07`
-- **USDC**: Real token at `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913`
-- **Whale**: Real USDC whale at `0x0B0A5886664376F59C351ba3f598C8A8B4D0A6f3`
-- **Speed**: ~5-6 seconds (real network latency)
-- **Purpose**: Production-ready integration testing, real contract behavior
-- **Command**: `make test-fork` or `forge test --match-contract "PaymentsPluginForkTest"`
-
-#### **Bulloak Integration**
-- YAML test specifications in `test/*.t.yaml` files
-- Automated Solidity scaffolding via `make sync-tests`
-- Tree file generation for structured test organization
-- Human-readable test documentation via `make markdown-tests`
-
 ## Project Structure
 
 ### Specifications (Planning Phase)
@@ -192,6 +163,7 @@ PayNest implements a comprehensive dual-testing approach with both unit and fork
 ## Git Workflow
 
 ### Commit Messages
+
 - Use conventional commits format: `type(scope): description`
 - Types: `feat`, `fix`, `docs`, `test`, `refactor`, `chore`
 - Examples:
@@ -205,30 +177,35 @@ PayNest implements a comprehensive dual-testing approach with both unit and fork
 ### Key Discoveries and Solutions
 
 #### **PaymentsForkBuilder Design**
-- **Issue**: DAOFactory requires complex permission setup on forked networks
-- **Solution**: Bypass DAOFactory and deploy DAO directly with manual permission grants
-- **Pattern**: Use `ProxyLib.deployUUPSProxy()` for direct DAO deployment
-- **Permissions**: Manually grant `MANAGER_PERMISSION_ID` and `EXECUTE_PERMISSION_ID`
-- **Note**: This differs from boilerplate `ForkBuilder` which uses real DAOFactory but currently fails due to permission/environment issues
+
+- **Pattern**: Uses real DAOFactory and PluginRepoFactory like boilerplate `ForkBuilder`
+- **DAO Creation**: `daoFactory.createDao(daoSettings, installSettings)` with plugin installation
+- **Plugin Repo**: Creates plugin repo with `pluginRepoFactory.createPluginRepoWithFirstVersion()`
+- **Environment**: Requires correct Base mainnet Aragon addresses in `.env` file
+- **Success**: All 15 fork tests passing with official Aragon infrastructure
 
 #### **Real Contract Behavior Adaptations**
+
 - **USDC Approval**: Real USDC doesn't use `type(uint256).max`, check for sufficient approval instead
 - **LlamaPay Stream Lifecycle**: Cancelled streams revert with "stream doesn't exist" on `withdrawable()` calls
 - **Event Emission Timing**: `vm.expectEmit()` must be placed immediately before the action, not after
 - **Network Latency**: Fork tests take 5+ seconds vs milliseconds for mocked tests
 
 #### **Bulloak Integration Patterns**
+
 - **YAML Location**: Keep YAML files in `test/` directory alongside Solidity tests
 - **Tree Generation**: Use `deno run ./script/make-test-tree.ts` for YAML → tree conversion
 - **Test Scaffolding**: `make sync-tests` generates Solidity from tree files
 - **Format**: Use `given/when/then` structure matching existing project patterns
 
 #### **Permission System Testing**
+
 - **Unauthorized Caller**: Use `address(this)` (test contract) for permission failures, not predefined actors
 - **Error Matching**: Ensure actual error addresses match expected addresses in `DaoUnauthorized` events
 - **Context Matters**: Fork tests run in different context than unit tests for permission checking
 
 #### **Real Contract Addresses (Base Mainnet)**
+
 ```solidity
 address constant LLAMAPAY_FACTORY_BASE = 0x09c39B8311e4B7c678cBDAD76556877ecD3aEa07;
 address constant USDC_BASE = 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913;
@@ -241,7 +218,7 @@ address constant USDC_WHALE = 0x0B0A5886664376F59C351ba3f598C8A8B4D0A6f3;
 # Fast unit tests (mocked) - 115 tests
 forge test --match-path "./test/*.sol"
 
-# Production fork tests (real contracts) - 15 tests  
+# Production fork tests (real contracts) - 15 tests
 forge test --match-contract "PaymentsPluginForkTest"
 
 # All tests (mixed) - 130 tests
