@@ -1,0 +1,204 @@
+PaymentsPluginTest:
+  - describe: "Plugin Initialization"
+    - given: "valid initialization parameters"
+      and:
+      - when: "initializing the plugin"
+        then:
+        - it: "should set DAO address correctly"
+        - it: "should set registry address correctly"
+        - it: "should set LlamaPay factory address correctly"
+
+      - when: "initializing with zero addresses"
+        then:
+        - it: "should revert with InvalidToken for zero registry"
+        - it: "should revert with InvalidToken for zero factory"
+
+  - describe: "Stream Management"
+    - given: "manager has permission"
+      and:
+      - when: "creating a stream with valid parameters"
+        then:
+        - it: "should create stream successfully"
+        - it: "should emit StreamActive event"
+        - it: "should store stream metadata correctly"
+        - it: "should create LlamaPay stream"
+
+      - when: "creating a stream with invalid parameters"
+        then:
+        - it: "should revert with InvalidAmount for zero amount"
+        - it: "should revert with InvalidToken for zero token"
+        - it: "should revert with InvalidEndDate for past end date"
+        - it: "should revert with UsernameNotFound for invalid username"
+        - it: "should revert with StreamAlreadyExists for duplicate stream"
+
+      - when: "cancelling an active stream"
+        then:
+        - it: "should cancel stream successfully"
+        - it: "should emit PaymentStreamCancelled event"
+        - it: "should mark stream as inactive"
+
+      - when: "cancelling an inactive stream"
+        then:
+        - it: "should revert with StreamNotActive"
+
+      - when: "editing an active stream"
+        then:
+        - it: "should update stream amount successfully"
+        - it: "should emit StreamUpdated event"
+
+      - when: "editing an inactive stream"
+        then:
+        - it: "should revert with StreamNotActive"
+
+    - given: "non-manager tries to manage streams"
+      and:
+      - when: "trying to create stream"
+        then:
+        - it: "should revert with permission error"
+
+      - when: "trying to cancel stream"
+        then:
+        - it: "should revert with permission error"
+
+  - describe: "Stream Payouts"
+    - given: "active stream exists"
+      and:
+      - when: "requesting payout for valid stream"
+        then:
+        - it: "should execute payout successfully"
+        - it: "should emit StreamPayout event"
+        - it: "should update lastPayout timestamp"
+        - it: "should return correct payout amount"
+
+      - when: "requesting payout for inactive stream"
+        then:
+        - it: "should revert with StreamNotActive"
+
+      - when: "requesting payout for non-existent username"
+        then:
+        - it: "should revert with UsernameNotFound"
+
+  - describe: "Schedule Management"
+    - given: "manager has permission"
+      and:
+      - when: "creating a schedule with valid parameters"
+        then:
+        - it: "should create schedule successfully"
+        - it: "should emit ScheduleActive event"
+        - it: "should store schedule metadata correctly"
+
+      - when: "creating a one-time schedule"
+        then:
+        - it: "should set isOneTime flag correctly"
+        - it: "should set first payment date correctly"
+
+      - when: "creating a recurring schedule"
+        then:
+        - it: "should set interval correctly"
+        - it: "should set next payout correctly"
+
+      - when: "creating schedule with invalid parameters"
+        then:
+        - it: "should revert with InvalidAmount for zero amount"
+        - it: "should revert with InvalidToken for zero token"
+        - it: "should revert with InvalidFirstPaymentDate for past date"
+        - it: "should revert with UsernameNotFound for invalid username"
+        - it: "should revert with ScheduleAlreadyExists for duplicate schedule"
+
+      - when: "cancelling an active schedule"
+        then:
+        - it: "should cancel schedule successfully"
+        - it: "should emit PaymentScheduleCancelled event"
+        - it: "should mark schedule as inactive"
+
+      - when: "cancelling an inactive schedule"
+        then:
+        - it: "should revert with ScheduleNotActive"
+
+      - when: "editing an active schedule"
+        then:
+        - it: "should update schedule amount successfully"
+        - it: "should emit ScheduleUpdated event"
+
+      - when: "editing an inactive schedule"
+        then:
+        - it: "should revert with ScheduleNotActive"
+
+  - describe: "Schedule Payouts"
+    - given: "active schedule exists"
+      and:
+      - when: "payment is due for one-time schedule"
+        then:
+        - it: "should execute payout successfully"
+        - it: "should emit SchedulePayout event"
+        - it: "should deactivate one-time schedule"
+        - it: "should transfer tokens to recipient"
+
+      - when: "payment is due for recurring schedule"
+        then:
+        - it: "should execute payout successfully"
+        - it: "should update next payout date"
+        - it: "should keep schedule active"
+
+      - when: "multiple payments are due (eager payout)"
+        then:
+        - it: "should pay for all missed periods"
+        - it: "should emit SchedulePayout with correct period count"
+        - it: "should update next payout correctly"
+
+      - when: "payment is not due yet"
+        then:
+        - it: "should revert with PaymentNotDue"
+
+      - when: "requesting payout for inactive schedule"
+        then:
+        - it: "should revert with ScheduleNotActive"
+
+  - describe: "Username Resolution"
+    - given: "registry contains usernames"
+      and:
+      - when: "resolving valid username"
+        then:
+        - it: "should return correct address"
+
+      - when: "resolving invalid username"
+        then:
+        - it: "should revert with UsernameNotFound"
+
+      - when: "username address changes during stream"
+        then:
+        - it: "should resolve to new address on payout"
+
+  - describe: "LlamaPay Integration"
+    - given: "token contracts exist"
+      and:
+      - when: "getting LlamaPay contract for new token"
+        then:
+        - it: "should deploy new LlamaPay contract"
+        - it: "should cache contract address"
+
+      - when: "getting LlamaPay contract for existing token"
+        then:
+        - it: "should return cached contract address"
+
+      - when: "calculating amount per second"
+        then:
+        - it: "should handle 6 decimal tokens correctly"
+        - it: "should handle 18 decimal tokens correctly"
+        - it: "should convert to 20 decimal precision"
+        - it: "should fit in uint216"
+
+      - when: "amount per second overflows"
+        then:
+        - it: "should revert with AmountPerSecondOverflow"
+
+  - describe: "View Functions"
+    - given: "streams and schedules exist"
+      and:
+      - when: "getting stream data"
+        then:
+        - it: "should return correct stream information"
+
+      - when: "getting schedule data"
+        then:
+        - it: "should return correct schedule information"
