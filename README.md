@@ -1,16 +1,24 @@
-# Aragon OSx Plugin Template 🚀
+# PayNest 💸
 
-Welcome to the Foundry template for OSx plugins!
+A comprehensive payments plugin for Aragon DAOs that enables username-based streaming payments and scheduled payouts through LlamaPay integration.
 
-This template is designed to help get developers up and running in a few minutes.
+## What is PayNest?
 
-## Features ✨
+PayNest simplifies DAO treasury management by allowing DAOs to:
 
-- **Foundry**: Configured with the right dependencies and settings for Aragon OSx.
-- **Examples**: Example plugins and scripts to showcase the most typical scenarios.
-- **Testing environment**: A set of tools to help you test your new DAO deployment.
+- **Stream payments** to contributors using human-readable usernames instead of wallet addresses
+- **Schedule recurring payments** (weekly, monthly, quarterly, yearly) for regular contributors
+- **Integrate with LlamaPay** for gas-efficient, continuous token streaming
+- **Resolve usernames** through a global address registry system
 
-A few variants and options are provided for convenience, while keeping the template as lean as possible. [See below](#template-variants);
+## Key Features ✨
+
+- **Username-Based Payments**: Send payments to `@alice` instead of `0x1234...`
+- **LlamaPay Integration**: Leverage battle-tested streaming payment infrastructure
+- **Flexible Scheduling**: Support for one-time and recurring payment schedules
+- **DAO Treasury Integration**: Secure fund management through Aragon's permission system
+- **Multi-Token Support**: Stream any ERC-20 token with proper decimal handling
+- **Gas Optimized**: Efficient operations using LlamaPay's 69k gas stream creation
 
 ## Prerequisites 📋
 - [Foundry](https://getfoundry.sh/)
@@ -18,19 +26,42 @@ A few variants and options are provided for convenience, while keeping the templ
 - [Make](https://www.gnu.org/software/make/)
 - [Docker](https://www.docker.com) (optional)
 
+## Architecture Overview
+
+PayNest consists of three main components:
+
+### 1. PaymentsPlugin Contract
+The core plugin that handles streaming and scheduled payments:
+- Implements the `IPayments` interface 
+- Integrates with LlamaPay for streaming functionality
+- Manages scheduled payments with flexible intervals
+- Resolves usernames through the AddressRegistry
+
+### 2. AddressRegistry Contract  
+A global username-to-address mapping system:
+- One username per address (1:1 mapping)
+- Alphanumeric usernames with strict validation
+- Cross-DAO compatibility for consistent username resolution
+- No admin controls - fully decentralized
+
+### 3. LlamaPay Integration
+Battle-tested streaming payment infrastructure:
+- Gas-efficient continuous token transfers (69k gas per stream)
+- High-precision math with 20-decimal internal representation
+- Debt management when DAO balance insufficient
+- Multi-token support across all networks
+
 ## Getting Started 🏁
 
-To get started, clone this repository and run the initial commands:
-
 ```bash
-git clone https://github.com/aragon/osx-plugin-template-foundry my-plugin
-cd my-plugin && rm -Rf .git && git init .
+git clone https://github.com/your-org/paynest
+cd paynest
 cp .env.example .env
 make init
 forge build
 ```
 
-Edit `.env` to match your desired network and settings.
+Edit `.env` to configure your target network and deployment settings.
 
 ### Installing dependencies
 
@@ -104,37 +135,56 @@ Run `make init`:
 - It ensures that the dependencies are installed
 - It runs a first compilation of the project
 
-## Template Variants 🌈
+## Core Functionality
 
-In order to accommodate a wide range of cases, this repo provides comprehensive examples for the following variants:
+### Streaming Payments 🌊
 
-### Plugin types
+Create continuous token streams to contributors:
 
-- [UUPS upgradeable plugin](./src/MyUpgradeablePlugin.sol)
-- [Cloneable plugin](./src/MyCloneablePlugin.sol)
-- [Static plugin](./src/MyStaticPlugin.sol)
+```solidity
+// Stream 1000 USDC to @alice over 30 days
+plugin.createStream("alice", 1000e6, USDC_ADDRESS, block.timestamp + 30 days);
 
-Update the `constructor()` and `prepareInstallation()` on the [plugin setup](./src/setup/MyPluginSetup.sol) to make it target the variant of your choice.
+// Recipients can claim their accrued tokens anytime
+plugin.requestStreamPayout("alice");
 
-For upgradeable plugins, consider inheriting from `PluginUpgradeableSetup` instead of `PluginSetup`.
+// Cancel streams when needed
+plugin.cancelStream("alice");
+```
 
-### Deployment flows
+### Scheduled Payments 📅
 
-- [Deploying a plugin repository](./script/DeploySimple.s.sol) (simple)
-- [Deploying a DAO with plugin(s) installed](./script/DeployDaoWithPlugins.s.sol)
-- [Deploying a DAO with plugin(s) via a Factory (trustless)](./script/DeployViaFactory.s.sol)
+Set up recurring payments for regular contributors:
 
-Update `DEPLOYMENT_SCRIPT` in `Makefile` to make it use the deployment script of your choice.
+```solidity
+// Pay @bob 500 USDC monthly starting next week
+plugin.createSchedule(
+    "bob", 
+    500e6, 
+    USDC_ADDRESS, 
+    IntervalType.MONTHLY, 
+    false, // recurring
+    block.timestamp + 7 days
+);
 
-### DAO builders (for testing)
+// Recipients request payouts when due
+plugin.requestSchedulePayout("bob");
+```
 
-- [Simple builder](./test/builders/SimpleBuilder.sol)
-  - It creates a simple DAO with the available plugin(s) installed
-  - It uses convenient defaults while allowing to override when needed
-- [Fork Builder](./test/builders/ForkBuilder.sol)
-  - It returns a full DAO setup with the available plugin(s) installed
-  - It creates a network fork and uses the configured `DAO_FACTORY_ADDRESS` and `PLUGIN_REPO_FACTORY_ADDRESS` for simulating deployments
-  - Like before, it uses convenient defaults while allowing to override when needed
+### Username Management 👤
+
+Contributors claim and manage their usernames:
+
+```solidity
+// Claim a username (one per address)
+registry.claimUsername("alice");
+
+// Update address while keeping same username
+registry.updateUserAddress("alice", newAddress);
+
+// DAOs resolve usernames to current addresses
+address recipient = registry.getUserAddress("alice");
+```
 
 ## Testing 🔍
 
@@ -239,13 +289,39 @@ console.log("DaoFactory", deployment.daoFactory);
 
 You can even [customize your local OSx test environment](https://github.com/aragon/protocol-factory?tab=readme-ov-file#if-you-need-to-override-some-parameters) if needed.
 
+## Installation for DAOs
+
+PayNest can be installed on any Aragon DAO through the standard plugin installation process:
+
+### Prerequisites
+- Registry address: `0x...` (deployed globally per network)
+- LlamaPay factory: `0xde1C04855c2828431ba637675B6929A684f84C7` (all networks)
+- Manager address: Who can create/manage payments in your DAO
+
+### Installation Steps
+1. Navigate to your DAO in the Aragon App
+2. Go to Settings → Plugins → Browse Plugins
+3. Search for "PayNest" and click Install
+4. Configure installation parameters:
+   - Manager address (typically DAO multisig or governance)
+   - Registry address for your network
+   - LlamaPay factory address
+5. Approve the installation proposal
+6. Once installed, the plugin will appear in your DAO sidebar
+
 ## Deployment 🚀
 
-Check the available make targets to simulate and deploy the smart contracts:
+For developers deploying the plugin infrastructure:
 
-```
-- make predeploy        Simulate a protocol deployment
-- make deploy           Deploy the protocol and verify the source code
+```bash
+# Simulate deployment
+make predeploy
+
+# Deploy to network
+make deploy
+
+# Verify contracts on explorers
+make verify-etherscan
 ```
 
 ### Deployment Checklist
@@ -347,9 +423,36 @@ Security Contact Email: sirt@aragon.org
 
 Please do not use the public issue tracker to report security issues.
 
+## Benefits for DAOs
+
+### For DAO Contributors
+- **Simplified Onboarding**: No need to share wallet addresses - just claim a username
+- **Flexible Payments**: Receive streams or scheduled payments based on contribution type
+- **Self-Service**: Claim payments when convenient without waiting for manual processing
+- **Address Flexibility**: Update wallet address while keeping the same username
+
+### For DAO Treasurers
+- **Automated Payments**: Set up recurring payments that execute automatically
+- **Gas Efficiency**: Leverage LlamaPay's optimized streaming for significant gas savings
+- **Multi-Token Support**: Stream any ERC-20 token with proper decimal handling
+- **Transparent Tracking**: All payments are on-chain and auditable
+
+### For DAO Operations
+- **Reduced Admin Overhead**: Automate regular contributor payments
+- **Improved Cash Flow**: Stream payments reduce large lump-sum treasury outflows
+- **Better Budgeting**: Predictable payment schedules aid in treasury planning
+- **Enhanced Security**: Aragon's permission system ensures only authorized payments
+
+## Documentation
+
+- [Payments Plugin Specification](./docs/payments-plugin-spec.md) - Complete technical specification
+- [LlamaPay Integration](./docs/llamapay-integration-spec.md) - Integration details and patterns
+- [Address Registry](./docs/address-registry-spec.md) - Username system documentation
+- [Testing Strategy](./docs/testing-strategy.md) - Comprehensive testing approach
+
 ## Contributing 🤝
 
-Contributions are welcome! Please read our contributing guidelines to get started.
+Contributions are welcome! Please read our contributing guidelines and check the specifications in the `docs/` folder for implementation details.
 
 ## License 📄
 
@@ -357,4 +460,4 @@ This project is licensed under AGPL-3.0-or-later.
 
 ## Support 💬
 
-For support, join our Discord server or open an issue in the repository.
+For support, open an issue in this repository or reach out through Aragon's community channels.
