@@ -88,14 +88,6 @@ make verify-sourcify
 - Follow existing Aragon permission patterns with `auth()` modifiers
 - Test using `SimpleBuilder` and `ForkBuilder` patterns
 
-### Testing Strategy
-
-- Tests use builder patterns (`SimpleBuilder`, `ForkBuilder`) for creating test DAOs
-- Pre-defined test actors: `alice`, `bob`, `carol`, `david` from `TestBase`
-- YAML-driven test definitions converted to Solidity with bulloak
-- Unit tests: `make test` (fast, local)
-- Fork tests: `make test-fork` (integration with live Aragon contracts)
-
 ## Project Structure
 
 ### Specifications (Planning Phase)
@@ -161,14 +153,17 @@ make verify-sourcify
 
 ### Testing Approach
 
-- Follow testing strategy in `docs/testing-strategy.md`
-- Use existing test builders as patterns
-- Write invariant tests for critical security properties
-- Test against real Aragon contracts using fork tests
+- **Unit Testing**: Fast feedback loop with mocks for development
+- **Fork Testing**: Real contract integration for production confidence
+- **Builder Patterns**: Use `PaymentsForkBuilder` for fork tests, `PaymentsBuilder` for unit tests
+- **Bulloak Scaffolding**: YAML-driven test structure for consistency
+- **Real Contract Testing**: All 15 fork tests run against live Base mainnet
+- **Test Coverage**: 130 total tests (115 unit + 15 fork) all passing
 
 ## Git Workflow
 
 ### Commit Messages
+
 - Use conventional commits format: `type(scope): description`
 - Types: `feat`, `fix`, `docs`, `test`, `refactor`, `chore`
 - Examples:
@@ -176,3 +171,66 @@ make verify-sourcify
   - `docs(specs): update payments plugin specification`
   - `test(registry): add username validation tests`
   - `fix(factory): handle DAO creation failures properly`
+
+## Fork Testing Implementation Lessons
+
+### Key Discoveries and Solutions
+
+#### **PaymentsForkBuilder Design**
+
+- **Pattern**: Uses real DAOFactory and PluginRepoFactory like boilerplate `ForkBuilder`
+- **DAO Creation**: `daoFactory.createDao(daoSettings, installSettings)` with plugin installation
+- **Plugin Repo**: Creates plugin repo with `pluginRepoFactory.createPluginRepoWithFirstVersion()`
+- **Environment**: Requires correct Base mainnet Aragon addresses in `.env` file
+- **Success**: All 15 fork tests passing with official Aragon infrastructure
+
+#### **Real Contract Behavior Adaptations**
+
+- **USDC Approval**: Real USDC doesn't use `type(uint256).max`, check for sufficient approval instead
+- **LlamaPay Stream Lifecycle**: Cancelled streams revert with "stream doesn't exist" on `withdrawable()` calls
+- **Event Emission Timing**: `vm.expectEmit()` must be placed immediately before the action, not after
+- **Network Latency**: Fork tests take 5+ seconds vs milliseconds for mocked tests
+
+#### **Bulloak Integration Patterns**
+
+- **YAML Location**: Keep YAML files in `test/` directory alongside Solidity tests
+- **Tree Generation**: Use `deno run ./script/make-test-tree.ts` for YAML → tree conversion
+- **Test Scaffolding**: `make sync-tests` generates Solidity from tree files
+- **Format**: Use `given/when/then` structure matching existing project patterns
+
+#### **Permission System Testing**
+
+- **Unauthorized Caller**: Use `address(this)` (test contract) for permission failures, not predefined actors
+- **Error Matching**: Ensure actual error addresses match expected addresses in `DaoUnauthorized` events
+- **Context Matters**: Fork tests run in different context than unit tests for permission checking
+
+#### **Real Contract Addresses (Base Mainnet)**
+
+```solidity
+address constant LLAMAPAY_FACTORY_BASE = 0x09c39B8311e4B7c678cBDAD76556877ecD3aEa07;
+address constant USDC_BASE = 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913;
+address constant USDC_WHALE = 0x0B0A5886664376F59C351ba3f598C8A8B4D0A6f3;
+```
+
+### Testing Commands Reference
+
+```bash
+# Fast unit tests (mocked) - 115 tests
+forge test --match-path "./test/*.sol"
+
+# Production fork tests (real contracts) - 15 tests
+forge test --match-contract "PaymentsPluginForkTest"
+
+# All tests (mixed) - 130 tests
+forge test
+
+# Always use verbose output for debugging
+forge test -vvv
+```
+
+## Testing Tips
+
+- Always run tests with at least -vvv so you can see the stack trace
+- Fork tests prove production readiness but unit tests provide fast development feedback
+- Use `PaymentsForkBuilder` pattern for any new fork test implementations
+- Real LlamaPay behavior may differ from mocks - test both scenarios

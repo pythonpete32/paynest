@@ -1,0 +1,71 @@
+PaymentsPluginSetupTest:
+  - describe: "Plugin Setup Installation"
+    - given: "valid installation parameters"
+      and:
+      - when: "preparing installation"
+        then:
+        - it: "should deploy plugin proxy successfully"
+        - it: "should initialize plugin with correct parameters"
+        - it: "should grant MANAGER_PERMISSION to manager address"
+        - it: "should grant EXECUTE_PERMISSION to plugin on DAO"
+        - it: "should return correct setup data"
+
+      - when: "installing with invalid parameters"
+        then:
+        - it: "should revert with InvalidManagerAddress for zero manager"
+        - it: "should revert with InvalidRegistryAddress for zero registry"
+        - it: "should revert with InvalidLlamaPayFactory for zero factory"
+
+  - describe: "Plugin Setup Uninstallation"
+    - given: "plugin is installed"
+      and:
+      - when: "preparing uninstallation"
+        then:
+        - it: "should revoke MANAGER_PERMISSION from manager address"
+        - it: "should revoke EXECUTE_PERMISSION from plugin on DAO"
+        - it: "should return correct revocation permissions"
+
+  - describe: "Parameter Encoding/Decoding"
+    - given: "various parameter combinations"
+      and:
+      - when: "encoding installation parameters"
+        then:
+        - it: "should encode parameters correctly"
+
+      - when: "decoding installation parameters"
+        then:
+        - it: "should decode parameters correctly"
+        - it: "should match original values"
+
+      - when: "encoding uninstallation parameters"
+        then:
+        - it: "should encode manager address correctly"
+
+      - when: "decoding uninstallation parameters"
+        then:
+        - it: "should decode manager address correctly"
+
+  - describe: "Implementation Management"
+    - given: "setup contract is deployed"
+      and:
+      - when: "getting implementation address"
+        then:
+        - it: "should return correct implementation address"
+
+  - describe: "UUPS Proxy Deployment"
+    - given: "installation is prepared"
+      and:
+      - when: "proxy is deployed"
+        then:
+        - it: "should use ERC1967Proxy"
+        - it: "should point to correct implementation"
+        - it: "should initialize with correct call data"
+
+  - describe: "Permission Configuration"
+    - given: "installation parameters"
+      and:
+      - when: "setting up permissions"
+        then:
+        - it: "should create correct permission array"
+        - it: "should use correct permission IDs"
+        - it: "should set correct targets and grantees"

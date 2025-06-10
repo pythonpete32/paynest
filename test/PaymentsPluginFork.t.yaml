@@ -1,0 +1,120 @@
+PaymentsPluginForkTest:
+  - given: "testing plugin initialization"
+    and:
+    - it: "should set DAO address correctly"
+    - it: "should set registry address correctly"
+    - it: "should set LlamaPay factory address correctly"
+    - when: "invalid parameters provided"
+      then:
+      - it: "should revert with invalid token for zero registry"
+      - it: "should revert with invalid token for zero factory"
+  
+  - given: "testing stream management"
+    and:
+    - when: "creating streams"
+      then:
+      - it: "should create stream successfully with real USDC"
+      - it: "should emit stream active event"
+      - it: "should store stream metadata correctly"
+      - it: "should deploy real LlamaPay contract for token"
+      - it: "should deposit funds to real LlamaPay contract"
+      - when: "invalid parameters"
+        then:
+        - it: "should revert with invalid amount for zero amount"
+        - it: "should revert with invalid token for zero token"
+        - it: "should revert with invalid end date for past date"
+        - it: "should revert with username not found for invalid username"
+        - it: "should revert with stream already exists for duplicate stream"
+    
+    - when: "canceling streams"
+      then:
+      - it: "should cancel stream successfully"
+      - it: "should emit payment stream cancelled event"
+      - it: "should mark stream as inactive"
+      - it: "should cancel real LlamaPay stream"
+      - it: "should withdraw remaining funds to DAO"
+      - it: "should revert with stream not active for non-existent stream"
+    
+    - when: "editing streams"
+      then:
+      - it: "should update stream amount successfully"
+      - it: "should emit stream updated event"
+      - it: "should cancel old LlamaPay stream"
+      - it: "should create new LlamaPay stream with updated amount"
+      - it: "should revert with stream not active for non-existent stream"
+    
+    - when: "requesting stream payouts"
+      then:
+      - it: "should execute payout successfully with real LlamaPay"
+      - it: "should emit stream payout event"
+      - it: "should update last payout timestamp"
+      - it: "should handle zero withdrawable amount gracefully"
+      - it: "should revert with stream not active for non-existent stream"
+      - it: "should revert with username not found for invalid username"
+  
+  - given: "testing schedule management"
+    and:
+    - when: "creating schedules"
+      then:
+      - it: "should create schedule successfully"
+      - it: "should emit schedule active event"
+      - it: "should store schedule metadata correctly"
+      - when: "invalid parameters"
+        then:
+        - it: "should revert with invalid amount for zero amount"
+        - it: "should revert with invalid token for zero token"
+        - it: "should revert with invalid first payment date for past date"
+        - it: "should revert with username not found for invalid username"
+        - it: "should revert with schedule already exists for duplicate schedule"
+    
+    - when: "canceling schedules"
+      then:
+      - it: "should cancel schedule successfully"
+      - it: "should emit payment schedule cancelled event"
+      - it: "should mark schedule as inactive"
+      - it: "should revert with schedule not active for non-existent schedule"
+    
+    - when: "editing schedules"
+      then:
+      - it: "should update schedule amount successfully"
+      - it: "should emit schedule updated event"
+      - it: "should revert with schedule not active for non-existent schedule"
+    
+    - when: "requesting schedule payouts"
+      then:
+      - it: "should execute payout successfully for due payment"
+      - it: "should emit schedule payout event"
+      - it: "should handle multiple periods correctly"
+      - it: "should update next payout timestamp for recurring"
+      - it: "should mark one-time schedule as inactive"
+      - it: "should transfer real USDC tokens"
+      - it: "should revert with schedule not active for non-existent schedule"
+      - it: "should revert with payment not due for early payout"
+  
+  - given: "testing permission system"
+    and:
+    - it: "should revert create stream without manager permission"
+    - it: "should revert cancel stream without manager permission"
+    - it: "should revert edit stream without manager permission"
+    - it: "should revert create schedule without manager permission"
+    - it: "should revert cancel schedule without manager permission"
+    - it: "should revert edit schedule without manager permission"
+  
+  - given: "testing LlamaPay integration"
+    and:
+    - it: "should get or deploy LlamaPay contract for token"
+    - it: "should cache LlamaPay contract addresses"
+    - it: "should calculate amount per second correctly with decimals"
+    - it: "should handle USDC decimals conversion properly"
+    - it: "should ensure DAO approval for LlamaPay spending"
+    - it: "should deposit to real LlamaPay contract"
+    - it: "should create stream with reason in real LlamaPay"
+    - it: "should cancel stream in real LlamaPay"
+    - it: "should withdraw funds from real LlamaPay"
+  
+  - given: "testing view functions"
+    and:
+    - it: "should return correct stream information"
+    - it: "should return empty for non-existent stream"
+    - it: "should return correct schedule information"
+    - it: "should return empty for non-existent schedule"

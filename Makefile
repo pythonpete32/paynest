@@ -119,6 +119,10 @@ test-coverage: report/index.html ## Generate an HTML coverage report under ./rep
 	@which open > /dev/null && open report/index.html || true
 	@which xdg-open > /dev/null && xdg-open report/index.html || true
 
+.PHONY: test-coverage-summary
+test-coverage-summary: ## Generate coverage summary for all contracts
+	@forge coverage --report summary
+
 report/index.html: lcov.info
 	genhtml $^ -o report
 
