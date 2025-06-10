@@ -188,18 +188,42 @@ address recipient = registry.getUserAddress("alice");
 
 ## Testing 🔍
 
-Using `make`:
+PayNest includes comprehensive testing with both unit tests (mocked) and fork tests (real contracts).
 
+### Test Commands
+
+```bash
+# Unit tests (fast, with mocks) - 115 tests
+make test
+forge test --match-path "./test/*.sol"
+
+# Fork tests (real Base mainnet contracts) - 15 tests
+make test-fork
+forge test --match-contract "PaymentsPluginForkTest"
+
+# All tests (unit + fork) - 130 tests
+forge test
+
+# Coverage report
+make test-coverage
 ```
-$ make
-[...]
-Testing lifecycle:
 
-- make test             Run unit tests, locally
-- make test-coverage    Generate an HTML coverage report under ./report
-```
+### Test Architecture
 
-Run `make test` or `forge test -vvv` to check the logic's accordance to the specs.
+**Unit Tests (115 tests)**
+- Mock LlamaPay contracts for fast, deterministic testing
+- Mock USDC tokens with controlled behavior
+- Real Aragon DAO contracts using SimpleBuilder
+- Purpose: Fast development, edge cases, gas optimization
+
+**Fork Tests (15 tests)**
+- **Zero mocking** - 100% real contracts on Base mainnet
+- Real USDC: `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913`
+- Real LlamaPay: `0x09c39B8311e4B7c678cBDAD76556877ecD3aEa07`
+- Real USDC whale: `0x0B0A5886664376F59C351ba3f598C8A8B4D0A6f3`
+- Purpose: Production-ready integration testing
+
+All tests use Bulloak for structured test scaffolding from YAML specifications.
 
 ### Writing tests
 
