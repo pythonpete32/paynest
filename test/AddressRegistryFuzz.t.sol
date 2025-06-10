@@ -69,8 +69,8 @@ contract AddressRegistryFuzzTest is TestBase {
         // Generate invalid first characters (not letters)
         vm.assume(firstCharCode != 0); // Avoid null character
         vm.assume(
-            ! // A-Z
-            ((firstCharCode >= 65 && firstCharCode <= 90) || (firstCharCode >= 97 && firstCharCode <= 122))
+            // A-Z
+            !((firstCharCode >= 65 && firstCharCode <= 90) || (firstCharCode >= 97 && firstCharCode <= 122))
         ); // a-z
 
         // Create username with invalid first character
