@@ -43,11 +43,7 @@ contract MyUpgradeablePluginStoreNumberTest is TestBase {
         managers[0] = alice;
         managers[1] = bob;
 
-        (dao, plugin) = new SimpleBuilder()
-            .withDaoOwner(david)
-            .withInitialNumber(100)
-            .withManagers(managers)
-            .build();
+        (dao, plugin) = new SimpleBuilder().withDaoOwner(david).withInitialNumber(100).withManagers(managers).build();
 
         vm.prank(alice);
         plugin.setNumber(69);
@@ -64,26 +60,14 @@ contract MyUpgradeablePluginStoreNumberTest is TestBase {
         // error DaoUnauthorized({dao: address(_dao),  where: _where,  who: _who,permissionId: _permissionId });
         vm.prank(carol);
         vm.expectRevert(
-            abi.encodeWithSelector(
-                DaoUnauthorized.selector,
-                dao,
-                plugin,
-                carol,
-                keccak256("MANAGER_PERMISSION")
-            )
+            abi.encodeWithSelector(DaoUnauthorized.selector, dao, plugin, carol, keccak256("MANAGER_PERMISSION"))
         );
         plugin.setNumber(0);
         assertEq(plugin.number(), 1);
 
         vm.prank(david);
         vm.expectRevert(
-            abi.encodeWithSelector(
-                DaoUnauthorized.selector,
-                dao,
-                plugin,
-                david,
-                keccak256("MANAGER_PERMISSION")
-            )
+            abi.encodeWithSelector(DaoUnauthorized.selector, dao, plugin, david, keccak256("MANAGER_PERMISSION"))
         );
         plugin.setNumber(50);
         assertEq(plugin.number(), 1);

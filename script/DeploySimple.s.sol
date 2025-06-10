@@ -10,10 +10,10 @@ import {hashHelpers, PluginSetupRef} from "@aragon/osx/framework/plugin/setup/Pl
 import {MyPluginSetup} from "../src/setup/MyPluginSetup.sol";
 
 /**
-This script performs the following tasks:
-- Deploys a new PluginRepo for each available plugin
-- Publishes a new version of each plugin (release 1, build 1)
-*/
+ * This script performs the following tasks:
+ * - Deploys a new PluginRepo for each available plugin
+ * - Publishes a new version of each plugin (release 1, build 1)
+ */
 contract DeploySimpleScript is Script {
     address deployer;
     PluginRepoFactory pluginRepoFactory;
@@ -44,9 +44,7 @@ contract DeploySimpleScript is Script {
         // https://github.com/aragon/osx/blob/main/packages/artifacts/src/addresses.json
 
         // Prepare the OSx factories for the current network
-        pluginRepoFactory = PluginRepoFactory(
-            vm.envAddress("PLUGIN_REPO_FACTORY_ADDRESS")
-        );
+        pluginRepoFactory = PluginRepoFactory(vm.envAddress("PLUGIN_REPO_FACTORY_ADDRESS"));
         vm.label(address(pluginRepoFactory), "PluginRepoFactory");
 
         // Read the rest of environment variables
@@ -54,15 +52,10 @@ contract DeploySimpleScript is Script {
 
         // Using a random subdomain if empty
         if (bytes(pluginEnsSubdomain).length == 0) {
-            pluginEnsSubdomain = string.concat(
-                "my-test-plugin-",
-                vm.toString(block.timestamp)
-            );
+            pluginEnsSubdomain = string.concat("my-test-plugin-", vm.toString(block.timestamp));
         }
 
-        pluginRepoMaintainerAddress = vm.envAddress(
-            "PLUGIN_REPO_MAINTAINER_ADDRESS"
-        );
+        pluginRepoMaintainerAddress = vm.envAddress("PLUGIN_REPO_MAINTAINER_ADDRESS");
         vm.label(pluginRepoMaintainerAddress, "Maintainer");
     }
 
@@ -81,25 +74,15 @@ contract DeploySimpleScript is Script {
         // The new plugin repository
         // Publish the plugin in a new repo as release 1, build 1
         myPluginRepo = pluginRepoFactory.createPluginRepoWithFirstVersion(
-            pluginEnsSubdomain,
-            address(myPluginSetup),
-            pluginRepoMaintainerAddress,
-            " ",
-            " "
+            pluginEnsSubdomain, address(myPluginSetup), pluginRepoMaintainerAddress, " ", " "
         );
     }
 
     function printDeployment() public view {
         console2.log("MyUpgradeablePlugin:");
         console2.log("- Plugin repo:               ", address(myPluginRepo));
-        console2.log(
-            "- Plugin repo maintainer:    ",
-            pluginRepoMaintainerAddress
-        );
-        console2.log(
-            "- ENS:                       ",
-            string.concat(pluginEnsSubdomain, ".plugin.dao.eth")
-        );
+        console2.log("- Plugin repo maintainer:    ", pluginRepoMaintainerAddress);
+        console2.log("- ENS:                       ", string.concat(pluginEnsSubdomain, ".plugin.dao.eth"));
         console2.log("");
     }
 }
