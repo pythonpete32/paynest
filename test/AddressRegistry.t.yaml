@@ -1,0 +1,169 @@
+AddressRegistryTest:
+  - describe: "Username Claiming"
+    - given: "valid username format"
+      and:
+      - when: "username is available"
+        and:
+        - when: "caller has no existing username"
+          then:
+          - it: "should claim username successfully"
+          - it: "should emit UsernameClaimed event"
+          - it: "should update both mappings"
+          - it: "should make username unavailable"
+
+      - when: "username is already claimed"
+        then:
+        - it: "should revert with UsernameAlreadyClaimed"
+
+      - when: "caller already has a username"
+        then:
+        - it: "should revert with AddressAlreadyHasUsername"
+
+    - given: "invalid username format"
+      and:
+      - when: "username is empty"
+        then:
+        - it: "should revert with UsernameEmpty"
+
+      - when: "username is too long (33+ characters)"
+        then:
+        - it: "should revert with UsernameTooLong"
+
+      - when: "username starts with underscore"
+        then:
+        - it: "should revert with UsernameCannotStartWithUnderscore"
+
+      - when: "username starts with number"
+        then:
+        - it: "should revert with UsernameCannotStartWithNumber"
+
+      - when: "username contains invalid character"
+        then:
+        - it: "should revert with InvalidCharacterInUsername"
+
+  - describe: "Address Updates"
+    - given: "user owns a username"
+      and:
+      - when: "new address is valid and available"
+        then:
+        - it: "should update username to new address"
+        - it: "should emit UserAddressUpdated event"
+        - it: "should clear old address mapping"
+        - it: "should update new address mapping"
+
+      - when: "new address is zero address"
+        then:
+        - it: "should revert with InvalidAddress"
+
+      - when: "new address already has a username"
+        then:
+        - it: "should revert with AddressAlreadyHasUsername"
+
+    - given: "user does not own the username"
+      and:
+      - when: "trying to update another user's username"
+        then:
+        - it: "should revert with NotUsernameOwner"
+
+  - describe: "Username Resolution"
+    - given: "username exists"
+      and:
+      - when: "calling getUserAddress"
+        then:
+        - it: "should return correct address"
+
+    - given: "username does not exist"
+      and:
+      - when: "calling getUserAddress"
+        then:
+        - it: "should return zero address"
+
+  - describe: "View Functions"
+    - given: "various username states"
+      and:
+      - when: "checking username availability"
+        then:
+        - it: "should return true for available usernames"
+        - it: "should return false for claimed usernames"
+
+      - when: "getting username by address"
+        then:
+        - it: "should return correct username for addresses with usernames"
+        - it: "should return empty string for addresses without usernames"
+
+      - when: "checking if address has username"
+        then:
+        - it: "should return true for addresses with usernames"
+        - it: "should return false for addresses without usernames"
+
+  - describe: "Username Validation"
+    - given: "different username formats"
+      and:
+      - when: "username has valid characters (alphanumeric + underscore)"
+        then:
+        - it: "should accept valid usernames starting with letter"
+        - it: "should accept usernames with numbers in middle"
+        - it: "should accept usernames with underscores in middle"
+
+      - when: "username has invalid length"
+        then:
+        - it: "should reject empty usernames"
+        - it: "should reject usernames longer than 32 characters"
+
+      - when: "username has invalid starting character"
+        then:
+        - it: "should reject usernames starting with underscore"
+        - it: "should reject usernames starting with number"
+        - it: "should reject usernames starting with special characters"
+
+  - describe: "Bidirectional Mapping Consistency"
+    - given: "username claiming and updates"
+      and:
+      - when: "username is claimed"
+        then:
+        - it: "should maintain bidirectional mapping consistency"
+
+      - when: "address is updated"
+        then:
+        - it: "should maintain bidirectional mapping consistency"
+        - it: "should properly clear old mappings"
+
+  - describe: "Multi-User Scenarios"
+    - given: "multiple users"
+      and:
+      - when: "users claim different usernames"
+        then:
+        - it: "should allow multiple different username claims"
+        - it: "should maintain separate mappings for each user"
+
+      - when: "users try to claim same username"
+        then:
+        - it: "should only allow first user to claim"
+        - it: "should reject subsequent claims"
+
+  - describe: "Security and Edge Cases"
+    - given: "attack scenarios"
+      and:
+      - when: "attempting username squatting"
+        then:
+        - it: "should follow first-come-first-served rules"
+
+      - when: "attempting malicious address updates"
+        then:
+        - it: "should only allow owner to update"
+
+      - when: "attempting state consistency attacks"
+        then:
+        - it: "should maintain atomic updates"
+        - it: "should prevent partial state changes"
+
+  - describe: "Contract Invariants"
+    - given: "any state of the contract"
+      and:
+      - when: "checking mapping consistency"
+        then:
+        - it: "should maintain perfect bidirectional mapping sync"
+        - it: "should ensure one-to-one username-address mapping"
+        - it: "should never have orphaned mappings"
+        - it: "should never have empty usernames mapped to addresses"
+        - it: "should never have usernames mapped to zero address"
