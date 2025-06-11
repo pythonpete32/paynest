@@ -11,10 +11,7 @@ contract AddressRegistryFuzzTest is TestBase {
 
     // Events to test
     event UsernameClaimed(string indexed username, address indexed claimor);
-    event UserAddressUpdated(
-        string indexed username,
-        address indexed newAddress
-    );
+    event UserAddressUpdated(string indexed username, address indexed newAddress);
 
     function setUp() public {
         registry = new AddressRegistry();
@@ -24,28 +21,23 @@ contract AddressRegistryFuzzTest is TestBase {
     // Username Format Fuzz Tests
     // =========================================================================
 
-    function testFuzz_claimUsername_ValidFormats(
-        string calldata username
-    ) public {
+    function testFuzz_claimUsername_ValidFormats(string calldata username) public {
         // Only test usernames that should be valid according to our rules
         vm.assume(bytes(username).length > 0 && bytes(username).length <= 32);
 
         // Check first character is a letter
         bytes1 firstChar = bytes(username)[0];
-        vm.assume(
-            (firstChar >= "a" && firstChar <= "z") ||
-                (firstChar >= "A" && firstChar <= "Z")
-        );
+        vm.assume((firstChar >= "a" && firstChar <= "z") || (firstChar >= "A" && firstChar <= "Z"));
 
         // Check all characters are valid
         bool allValid = true;
         for (uint256 i = 0; i < bytes(username).length; i++) {
             bytes1 char = bytes(username)[i];
             if (
-                !((char >= "a" && char <= "z") ||
-                    (char >= "A" && char <= "Z") ||
-                    (char >= "0" && char <= "9") ||
-                    char == "_")
+                !(
+                    (char >= "a" && char <= "z") || (char >= "A" && char <= "Z") || (char >= "0" && char <= "9")
+                        || char == "_"
+                )
             ) {
                 allValid = false;
                 break;
@@ -64,9 +56,7 @@ contract AddressRegistryFuzzTest is TestBase {
         assertFalse(registry.isUsernameAvailable(username));
     }
 
-    function testFuzz_claimUsername_InvalidLength(
-        string calldata username
-    ) public {
+    function testFuzz_claimUsername_InvalidLength(string calldata username) public {
         // Test usernames that are too long
         vm.assume(bytes(username).length > 32 || bytes(username).length == 0);
 
@@ -75,23 +65,16 @@ contract AddressRegistryFuzzTest is TestBase {
         registry.claimUsername(username);
     }
 
-    function testFuzz_claimUsername_InvalidFirstCharacter(
-        uint8 firstCharCode,
-        string calldata rest
-    ) public {
+    function testFuzz_claimUsername_InvalidFirstCharacter(uint8 firstCharCode, string calldata rest) public {
         // Generate invalid first characters (not letters)
         vm.assume(firstCharCode != 0); // Avoid null character
         vm.assume(
             // A-Z
-            !((firstCharCode >= 65 && firstCharCode <= 90) ||
-                (firstCharCode >= 97 && firstCharCode <= 122))
+            !((firstCharCode >= 65 && firstCharCode <= 90) || (firstCharCode >= 97 && firstCharCode <= 122))
         ); // a-z
 
         // Create username with invalid first character
-        bytes memory usernameBytes = abi.encodePacked(
-            bytes1(firstCharCode),
-            bytes(rest)
-        );
+        bytes memory usernameBytes = abi.encodePacked(bytes1(firstCharCode), bytes(rest));
         vm.assume(usernameBytes.length <= 32 && usernameBytes.length > 0);
 
         string memory username = string(usernameBytes);
@@ -101,28 +84,23 @@ contract AddressRegistryFuzzTest is TestBase {
         registry.claimUsername(username);
     }
 
-    function testFuzz_claimUsername_InvalidCharacters(
-        string calldata username
-    ) public {
+    function testFuzz_claimUsername_InvalidCharacters(string calldata username) public {
         vm.assume(bytes(username).length > 0 && bytes(username).length <= 32);
 
         // Ensure first character is valid (letter)
         bytes memory usernameBytes = bytes(username);
         bytes1 firstChar = usernameBytes[0];
-        vm.assume(
-            (firstChar >= "a" && firstChar <= "z") ||
-                (firstChar >= "A" && firstChar <= "Z")
-        );
+        vm.assume((firstChar >= "a" && firstChar <= "z") || (firstChar >= "A" && firstChar <= "Z"));
 
         // Check if username contains any invalid characters
         bool hasInvalidChar = false;
         for (uint256 i = 0; i < usernameBytes.length; i++) {
             bytes1 char = usernameBytes[i];
             if (
-                !((char >= "a" && char <= "z") ||
-                    (char >= "A" && char <= "Z") ||
-                    (char >= "0" && char <= "9") ||
-                    char == "_")
+                !(
+                    (char >= "a" && char <= "z") || (char >= "A" && char <= "Z") || (char >= "0" && char <= "9")
+                        || char == "_"
+                )
             ) {
                 hasInvalidChar = true;
                 break;
@@ -141,9 +119,7 @@ contract AddressRegistryFuzzTest is TestBase {
     // Address Update Fuzz Tests
     // =========================================================================
 
-    function testFuzz_updateUserAddress_ValidAddresses(
-        address newAddress
-    ) public {
+    function testFuzz_updateUserAddress_ValidAddresses(address newAddress) public {
         // Ensure new address is valid and different from current
         vm.assume(newAddress != address(0));
         vm.assume(newAddress != alice);
@@ -167,10 +143,7 @@ contract AddressRegistryFuzzTest is TestBase {
         assertEq(registry.getUsernameByAddress(alice), "");
     }
 
-    function testFuzz_updateUserAddress_UnauthorizedCallers(
-        address caller,
-        address newAddress
-    ) public {
+    function testFuzz_updateUserAddress_UnauthorizedCallers(address caller, address newAddress) public {
         vm.assume(caller != alice);
         vm.assume(newAddress != address(0));
         vm.assume(caller != address(0));
@@ -213,12 +186,9 @@ contract AddressRegistryFuzzTest is TestBase {
     // Multi-User Fuzz Tests
     // =========================================================================
 
-    function testFuzz_multiUser_ClaimDifferentUsernames(
-        address user1,
-        address user2,
-        uint256 seed1,
-        uint256 seed2
-    ) public {
+    function testFuzz_multiUser_ClaimDifferentUsernames(address user1, address user2, uint256 seed1, uint256 seed2)
+        public
+    {
         vm.assume(user1 != user2);
         vm.assume(user1 != address(0) && user2 != address(0));
 
@@ -242,11 +212,7 @@ contract AddressRegistryFuzzTest is TestBase {
         assertTrue(registry.hasUsername(user2));
     }
 
-    function testFuzz_multiUser_SameUsernameConflict(
-        address user1,
-        address user2,
-        string calldata username
-    ) public {
+    function testFuzz_multiUser_SameUsernameConflict(address user1, address user2, string calldata username) public {
         vm.assume(user1 != user2);
         vm.assume(user1 != address(0) && user2 != address(0));
         _assumeValidUsername(username);
@@ -268,11 +234,7 @@ contract AddressRegistryFuzzTest is TestBase {
         assertFalse(registry.hasUsername(user2));
     }
 
-    function testFuzz_multiUser_DoubleClaimSameUser(
-        address user,
-        uint256 seed1,
-        uint256 seed2
-    ) public {
+    function testFuzz_multiUser_DoubleClaimSameUser(address user, uint256 seed1, uint256 seed2) public {
         vm.assume(user != address(0));
 
         // Generate different valid usernames from seeds
@@ -298,11 +260,9 @@ contract AddressRegistryFuzzTest is TestBase {
     // State Consistency Fuzz Tests
     // =========================================================================
 
-    function testFuzz_stateConsistency_ClaimAndUpdate(
-        address originalUser,
-        address newUser,
-        string calldata username
-    ) public {
+    function testFuzz_stateConsistency_ClaimAndUpdate(address originalUser, address newUser, string calldata username)
+        public
+    {
         vm.assume(originalUser != newUser);
         vm.assume(originalUser != address(0) && newUser != address(0));
         _assumeValidUsername(username);
@@ -360,9 +320,7 @@ contract AddressRegistryFuzzTest is TestBase {
     // Username Resolution Fuzz Tests
     // =========================================================================
 
-    function testFuzz_getUserAddress_NonExistentUsernames(
-        string calldata username
-    ) public {
+    function testFuzz_getUserAddress_NonExistentUsernames(string calldata username) public {
         _assumeValidUsername(username);
 
         // Should return zero address for non-existent usernames
@@ -370,9 +328,7 @@ contract AddressRegistryFuzzTest is TestBase {
         assertTrue(registry.isUsernameAvailable(username));
     }
 
-    function testFuzz_getUsernameByAddress_UnregisteredAddresses(
-        address user
-    ) public {
+    function testFuzz_getUsernameByAddress_UnregisteredAddresses(address user) public {
         vm.assume(user != address(0));
 
         // Should return empty string for unregistered addresses
@@ -444,10 +400,7 @@ contract AddressRegistryFuzzTest is TestBase {
         assertEq(bytes(singleChar).length, 1);
     }
 
-    function testFuzz_edgeCase_SequentialOperations(
-        address user,
-        uint256 seed
-    ) public {
+    function testFuzz_edgeCase_SequentialOperations(address user, uint256 seed) public {
         vm.assume(user != address(0));
         vm.assume(user != alice);
 
@@ -485,10 +438,7 @@ contract AddressRegistryFuzzTest is TestBase {
     // Property-Based Invariant Fuzz Tests
     // =========================================================================
 
-    function testFuzz_invariant_BidirectionalMapping(
-        address user,
-        string calldata username
-    ) public {
+    function testFuzz_invariant_BidirectionalMapping(address user, string calldata username) public {
         vm.assume(user != address(0));
         _assumeValidUsername(username);
 
@@ -498,20 +448,13 @@ contract AddressRegistryFuzzTest is TestBase {
 
         // Invariant: If username maps to address, address must map back to username
         address resolvedAddress = registry.getUserAddress(username);
-        string memory resolvedUsername = registry.getUsernameByAddress(
-            resolvedAddress
-        );
+        string memory resolvedUsername = registry.getUsernameByAddress(resolvedAddress);
 
         assertEq(resolvedAddress, user);
         assertTrue(_stringsEqual(resolvedUsername, username));
     }
 
-    function testFuzz_invariant_OneToOneMapping(
-        address user1,
-        address user2,
-        uint256 seed1,
-        uint256 seed2
-    ) public {
+    function testFuzz_invariant_OneToOneMapping(address user1, address user2, uint256 seed1, uint256 seed2) public {
         vm.assume(user1 != user2);
         vm.assume(user1 != address(0) && user2 != address(0));
 
@@ -539,9 +482,7 @@ contract AddressRegistryFuzzTest is TestBase {
         assertTrue(username1Address != username2Address);
     }
 
-    function testFuzz_invariant_NoZeroAddressMappings(
-        string calldata username
-    ) public {
+    function testFuzz_invariant_NoZeroAddressMappings(string calldata username) public {
         _assumeValidUsername(username);
 
         // Username should never map to zero address after any operation
@@ -563,34 +504,23 @@ contract AddressRegistryFuzzTest is TestBase {
 
         // Check first character is a letter
         bytes1 firstChar = bytes(username)[0];
-        vm.assume(
-            (firstChar >= "a" && firstChar <= "z") ||
-                (firstChar >= "A" && firstChar <= "Z")
-        );
+        vm.assume((firstChar >= "a" && firstChar <= "z") || (firstChar >= "A" && firstChar <= "Z"));
 
         // Check all characters are valid
         for (uint256 i = 0; i < bytes(username).length; i++) {
             bytes1 char = bytes(username)[i];
             vm.assume(
-                (char >= "a" && char <= "z") ||
-                    (char >= "A" && char <= "Z") ||
-                    (char >= "0" && char <= "9") ||
-                    char == "_"
+                (char >= "a" && char <= "z") || (char >= "A" && char <= "Z") || (char >= "0" && char <= "9")
+                    || char == "_"
             );
         }
     }
 
-    function _stringsEqual(
-        string memory a,
-        string memory b
-    ) internal pure returns (bool) {
+    function _stringsEqual(string memory a, string memory b) internal pure returns (bool) {
         return keccak256(bytes(a)) == keccak256(bytes(b));
     }
 
-    function _generateValidUsername(
-        uint256 seed,
-        string memory prefix
-    ) internal pure returns (string memory) {
+    function _generateValidUsername(uint256 seed, string memory prefix) internal pure returns (string memory) {
         // Generate a simple valid username using the seed and prefix
         // This ensures we always get valid usernames without vm.assume rejections
         bytes memory prefixBytes = bytes(prefix);
@@ -612,28 +542,20 @@ contract AddressRegistryFuzzTest is TestBase {
             uint256 charType = (seed >> (i * 8)) % 3;
             if (charType == 0) {
                 // Add lowercase letter
-                username[prefixBytes.length + i] = bytes1(
-                    uint8(97 + ((seed >> (i * 8)) % 26))
-                ); // a-z
+                username[prefixBytes.length + i] = bytes1(uint8(97 + ((seed >> (i * 8)) % 26))); // a-z
             } else if (charType == 1) {
                 // Add uppercase letter
-                username[prefixBytes.length + i] = bytes1(
-                    uint8(65 + ((seed >> (i * 8)) % 26))
-                ); // A-Z
+                username[prefixBytes.length + i] = bytes1(uint8(65 + ((seed >> (i * 8)) % 26))); // A-Z
             } else {
                 // Add digit
-                username[prefixBytes.length + i] = bytes1(
-                    uint8(48 + ((seed >> (i * 8)) % 10))
-                ); // 0-9
+                username[prefixBytes.length + i] = bytes1(uint8(48 + ((seed >> (i * 8)) % 10))); // 0-9
             }
         }
 
         return string(username);
     }
 
-    function _generateLongValidUsername(
-        uint256 seed
-    ) internal pure returns (string memory) {
+    function _generateLongValidUsername(uint256 seed) internal pure returns (string memory) {
         // Generate exactly 32 character username
         bytes memory username = new bytes(32);
 
@@ -655,9 +577,7 @@ contract AddressRegistryFuzzTest is TestBase {
         return string(username);
     }
 
-    function _generateMixedCaseUsername(
-        uint256 seed
-    ) internal pure returns (string memory) {
+    function _generateMixedCaseUsername(uint256 seed) internal pure returns (string memory) {
         // Generate username with intentionally mixed case
         uint256 length = (seed % 10) + 5; // 5-14 characters
         bytes memory username = new bytes(length);

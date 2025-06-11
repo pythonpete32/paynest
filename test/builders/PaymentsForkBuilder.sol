@@ -14,7 +14,7 @@ import {AddressRegistry} from "../../src/AddressRegistry.sol";
 import {ILlamaPayFactory} from "../../src/interfaces/ILlamaPay.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ProxyLib} from "@aragon/osx-commons-contracts/src/utils/deployment/ProxyLib.sol";
-import {NON_EMPTY_BYTES} from "../constants.sol";
+import {NON_EMPTY_BYTES} from "../lib/constants.sol";
 
 contract PaymentsForkBuilder is ForkTestBase {
     address immutable DAO_BASE = address(new DAO());

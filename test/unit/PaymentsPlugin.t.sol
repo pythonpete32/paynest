@@ -26,33 +26,18 @@ contract PaymentsPluginTest is Test {
     uint40 constant STREAM_DURATION = 30 days;
 
     // Events to test
-    event StreamActive(
-        string indexed username,
-        address indexed token,
-        uint40 endDate,
-        uint256 totalAmount
-    );
-    event StreamUpdated(
-        string indexed username,
-        address indexed token,
-        uint256 newAmount
-    );
-    event PaymentStreamCancelled(
-        string indexed username,
-        address indexed token
-    );
-    event StreamPayout(
-        string indexed username,
-        address indexed token,
-        uint256 amount
-    );
+    event StreamActive(string indexed username, address indexed token, uint40 endDate, uint256 totalAmount);
+    event StreamUpdated(string indexed username, address indexed token, uint256 newAmount);
+    event PaymentStreamCancelled(string indexed username, address indexed token);
+    event StreamPayout(string indexed username, address indexed token, uint256 amount);
 
     function setUp() public {
         // Use PaymentsBuilder to create properly configured DAO and plugin
-        (dao, plugin, registry, llamaPayFactory, token) = new PaymentsBuilder()
-        .withDaoOwner(address(this))
-        .withManagers(_getManagersArray()).build(); // Make test contract the DAO owner
-        // Set test contract as manager
+        (dao, plugin, registry, llamaPayFactory, token) = new PaymentsBuilder().withDaoOwner(address(this)).withManagers(
+            _getManagersArray()
+        ) // Make test contract the DAO owner
+                // Set test contract as manager
+            .build();
 
         // Setup test data - alice claims a username
         vm.prank(alice);
@@ -81,16 +66,11 @@ contract PaymentsPluginTest is Test {
         assertEq(address(plugin.registry()), address(registry));
     }
 
-    function test_initialize_ShouldSetLlamaPayFactoryAddressCorrectly()
-        public
-        view
-    {
+    function test_initialize_ShouldSetLlamaPayFactoryAddressCorrectly() public view {
         assertEq(address(plugin.llamaPayFactory()), address(llamaPayFactory));
     }
 
-    function test_initialize_ShouldRevertWithInvalidTokenForZeroRegistry()
-        public
-    {
+    function test_initialize_ShouldRevertWithInvalidTokenForZeroRegistry() public {
         // Deploy fresh implementation
         PaymentsPlugin implementation = new PaymentsPlugin();
 
@@ -98,27 +78,18 @@ contract PaymentsPluginTest is Test {
         vm.expectRevert(PaymentsPlugin.InvalidToken.selector);
         ProxyLib.deployUUPSProxy(
             address(implementation),
-            abi.encodeCall(
-                PaymentsPlugin.initialize,
-                (dao, address(0), address(llamaPayFactory))
-            )
+            abi.encodeCall(PaymentsPlugin.initialize, (dao, address(0), address(llamaPayFactory)))
         );
     }
 
-    function test_initialize_ShouldRevertWithInvalidTokenForZeroFactory()
-        public
-    {
+    function test_initialize_ShouldRevertWithInvalidTokenForZeroFactory() public {
         // Deploy fresh implementation
         PaymentsPlugin implementation = new PaymentsPlugin();
 
         // Create proxy with invalid factory (zero address)
         vm.expectRevert(PaymentsPlugin.InvalidToken.selector);
         ProxyLib.deployUUPSProxy(
-            address(implementation),
-            abi.encodeCall(
-                PaymentsPlugin.initialize,
-                (dao, address(registry), address(0))
-            )
+            address(implementation), abi.encodeCall(PaymentsPlugin.initialize, (dao, address(registry), address(0)))
         );
     }
 
@@ -129,12 +100,7 @@ contract PaymentsPluginTest is Test {
     function test_createStream_ShouldCreateStreamSuccessfully() public {
         uint40 endTime = uint40(block.timestamp + STREAM_DURATION);
 
-        plugin.createStream(
-            TEST_USERNAME,
-            STREAM_AMOUNT,
-            address(token),
-            endTime
-        );
+        plugin.createStream(TEST_USERNAME, STREAM_AMOUNT, address(token), endTime);
 
         IPayments.Stream memory stream = plugin.getStream(TEST_USERNAME);
         assertEq(stream.token, address(token));
@@ -147,30 +113,15 @@ contract PaymentsPluginTest is Test {
         uint40 endTime = uint40(block.timestamp + STREAM_DURATION);
 
         vm.expectEmit(true, true, false, true);
-        emit StreamActive(
-            TEST_USERNAME,
-            address(token),
-            endTime,
-            STREAM_AMOUNT
-        );
+        emit StreamActive(TEST_USERNAME, address(token), endTime, STREAM_AMOUNT);
 
-        plugin.createStream(
-            TEST_USERNAME,
-            STREAM_AMOUNT,
-            address(token),
-            endTime
-        );
+        plugin.createStream(TEST_USERNAME, STREAM_AMOUNT, address(token), endTime);
     }
 
     function test_createStream_ShouldStoreStreamMetadataCorrectly() public {
         uint40 endTime = uint40(block.timestamp + STREAM_DURATION);
 
-        plugin.createStream(
-            TEST_USERNAME,
-            STREAM_AMOUNT,
-            address(token),
-            endTime
-        );
+        plugin.createStream(TEST_USERNAME, STREAM_AMOUNT, address(token), endTime);
 
         IPayments.Stream memory stream = plugin.getStream(TEST_USERNAME);
         assertEq(stream.token, address(token));
@@ -179,81 +130,46 @@ contract PaymentsPluginTest is Test {
         assertEq(stream.lastPayout, uint40(block.timestamp));
     }
 
-    function test_createStream_ShouldRevertWithInvalidAmountForZeroAmount()
-        public
-    {
+    function test_createStream_ShouldRevertWithInvalidAmountForZeroAmount() public {
         uint40 endTime = uint40(block.timestamp + STREAM_DURATION);
 
         vm.expectRevert(PaymentsPlugin.InvalidAmount.selector);
         plugin.createStream(TEST_USERNAME, 0, address(token), endTime);
     }
 
-    function test_createStream_ShouldRevertWithInvalidTokenForZeroToken()
-        public
-    {
+    function test_createStream_ShouldRevertWithInvalidTokenForZeroToken() public {
         uint40 endTime = uint40(block.timestamp + STREAM_DURATION);
 
         vm.expectRevert(PaymentsPlugin.InvalidToken.selector);
         plugin.createStream(TEST_USERNAME, STREAM_AMOUNT, address(0), endTime);
     }
 
-    function test_createStream_ShouldRevertWithInvalidEndDateForPastEndDate()
-        public
-    {
+    function test_createStream_ShouldRevertWithInvalidEndDateForPastEndDate() public {
         uint40 endTime = uint40(block.timestamp - 1);
 
         vm.expectRevert(PaymentsPlugin.InvalidEndDate.selector);
-        plugin.createStream(
-            TEST_USERNAME,
-            STREAM_AMOUNT,
-            address(token),
-            endTime
-        );
+        plugin.createStream(TEST_USERNAME, STREAM_AMOUNT, address(token), endTime);
     }
 
-    function test_createStream_ShouldRevertWithUsernameNotFoundForInvalidUsername()
-        public
-    {
+    function test_createStream_ShouldRevertWithUsernameNotFoundForInvalidUsername() public {
         uint40 endTime = uint40(block.timestamp + STREAM_DURATION);
 
         vm.expectRevert(PaymentsPlugin.UsernameNotFound.selector);
-        plugin.createStream(
-            "nonexistent",
-            STREAM_AMOUNT,
-            address(token),
-            endTime
-        );
+        plugin.createStream("nonexistent", STREAM_AMOUNT, address(token), endTime);
     }
 
-    function test_createStream_ShouldRevertWithStreamAlreadyExistsForDuplicateStream()
-        public
-    {
+    function test_createStream_ShouldRevertWithStreamAlreadyExistsForDuplicateStream() public {
         uint40 endTime = uint40(block.timestamp + STREAM_DURATION);
 
-        plugin.createStream(
-            TEST_USERNAME,
-            STREAM_AMOUNT,
-            address(token),
-            endTime
-        );
+        plugin.createStream(TEST_USERNAME, STREAM_AMOUNT, address(token), endTime);
 
         vm.expectRevert(PaymentsPlugin.StreamAlreadyExists.selector);
-        plugin.createStream(
-            TEST_USERNAME,
-            STREAM_AMOUNT,
-            address(token),
-            endTime
-        );
+        plugin.createStream(TEST_USERNAME, STREAM_AMOUNT, address(token), endTime);
     }
 
     function test_cancelStream_ShouldCancelStreamSuccessfully() public {
         uint40 endTime = uint40(block.timestamp + STREAM_DURATION);
-        plugin.createStream(
-            TEST_USERNAME,
-            STREAM_AMOUNT,
-            address(token),
-            endTime
-        );
+        plugin.createStream(TEST_USERNAME, STREAM_AMOUNT, address(token), endTime);
 
         plugin.cancelStream(TEST_USERNAME);
 
@@ -263,12 +179,7 @@ contract PaymentsPluginTest is Test {
 
     function test_cancelStream_ShouldEmitPaymentStreamCancelledEvent() public {
         uint40 endTime = uint40(block.timestamp + STREAM_DURATION);
-        plugin.createStream(
-            TEST_USERNAME,
-            STREAM_AMOUNT,
-            address(token),
-            endTime
-        );
+        plugin.createStream(TEST_USERNAME, STREAM_AMOUNT, address(token), endTime);
 
         vm.expectEmit(true, true, false, true);
         emit PaymentStreamCancelled(TEST_USERNAME, address(token));
@@ -278,12 +189,7 @@ contract PaymentsPluginTest is Test {
 
     function test_cancelStream_ShouldMarkStreamAsInactive() public {
         uint40 endTime = uint40(block.timestamp + STREAM_DURATION);
-        plugin.createStream(
-            TEST_USERNAME,
-            STREAM_AMOUNT,
-            address(token),
-            endTime
-        );
+        plugin.createStream(TEST_USERNAME, STREAM_AMOUNT, address(token), endTime);
 
         plugin.cancelStream(TEST_USERNAME);
 
@@ -298,12 +204,7 @@ contract PaymentsPluginTest is Test {
 
     function test_editStream_ShouldUpdateStreamAmountSuccessfully() public {
         uint40 endTime = uint40(block.timestamp + STREAM_DURATION);
-        plugin.createStream(
-            TEST_USERNAME,
-            STREAM_AMOUNT,
-            address(token),
-            endTime
-        );
+        plugin.createStream(TEST_USERNAME, STREAM_AMOUNT, address(token), endTime);
 
         uint256 newAmount = 2000e6;
         plugin.editStream(TEST_USERNAME, newAmount);
@@ -315,12 +216,7 @@ contract PaymentsPluginTest is Test {
 
     function test_editStream_ShouldEmitStreamUpdatedEvent() public {
         uint40 endTime = uint40(block.timestamp + STREAM_DURATION);
-        plugin.createStream(
-            TEST_USERNAME,
-            STREAM_AMOUNT,
-            address(token),
-            endTime
-        );
+        plugin.createStream(TEST_USERNAME, STREAM_AMOUNT, address(token), endTime);
 
         uint256 newAmount = 2000e6;
 
@@ -341,12 +237,7 @@ contract PaymentsPluginTest is Test {
 
     function test_requestStreamPayout_ShouldExecutePayoutSuccessfully() public {
         uint40 endTime = uint40(block.timestamp + STREAM_DURATION);
-        plugin.createStream(
-            TEST_USERNAME,
-            STREAM_AMOUNT,
-            address(token),
-            endTime
-        );
+        plugin.createStream(TEST_USERNAME, STREAM_AMOUNT, address(token), endTime);
 
         // Fast forward some time
         vm.warp(block.timestamp + 1 days);
@@ -357,12 +248,7 @@ contract PaymentsPluginTest is Test {
 
     function test_requestStreamPayout_ShouldEmitStreamPayoutEvent() public {
         uint40 endTime = uint40(block.timestamp + STREAM_DURATION);
-        plugin.createStream(
-            TEST_USERNAME,
-            STREAM_AMOUNT,
-            address(token),
-            endTime
-        );
+        plugin.createStream(TEST_USERNAME, STREAM_AMOUNT, address(token), endTime);
 
         // Fast forward some time
         vm.warp(block.timestamp + 1 days);
@@ -375,12 +261,7 @@ contract PaymentsPluginTest is Test {
 
     function test_requestStreamPayout_ShouldUpdateLastPayoutTimestamp() public {
         uint40 endTime = uint40(block.timestamp + STREAM_DURATION);
-        plugin.createStream(
-            TEST_USERNAME,
-            STREAM_AMOUNT,
-            address(token),
-            endTime
-        );
+        plugin.createStream(TEST_USERNAME, STREAM_AMOUNT, address(token), endTime);
 
         // Fast forward some time
         vm.warp(block.timestamp + 1 days);
@@ -396,16 +277,9 @@ contract PaymentsPluginTest is Test {
         plugin.requestStreamPayout(TEST_USERNAME);
     }
 
-    function test_requestStreamPayout_ShouldRevertWithUsernameNotFound()
-        public
-    {
+    function test_requestStreamPayout_ShouldRevertWithUsernameNotFound() public {
         uint40 endTime = uint40(block.timestamp + STREAM_DURATION);
-        plugin.createStream(
-            TEST_USERNAME,
-            STREAM_AMOUNT,
-            address(token),
-            endTime
-        );
+        plugin.createStream(TEST_USERNAME, STREAM_AMOUNT, address(token), endTime);
 
         vm.expectRevert(PaymentsPlugin.UsernameNotFound.selector);
         plugin.requestStreamPayout("nonexistent");
@@ -420,39 +294,21 @@ contract PaymentsPluginTest is Test {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                DaoUnauthorized.selector,
-                address(dao),
-                address(plugin),
-                alice,
-                plugin.MANAGER_PERMISSION_ID()
+                DaoUnauthorized.selector, address(dao), address(plugin), alice, plugin.MANAGER_PERMISSION_ID()
             )
         );
 
         vm.prank(alice);
-        plugin.createStream(
-            TEST_USERNAME,
-            STREAM_AMOUNT,
-            address(token),
-            endTime
-        );
+        plugin.createStream(TEST_USERNAME, STREAM_AMOUNT, address(token), endTime);
     }
 
     function test_cancelStream_ShouldRevertWithoutManagerPermission() public {
         uint40 endTime = uint40(block.timestamp + STREAM_DURATION);
-        plugin.createStream(
-            TEST_USERNAME,
-            STREAM_AMOUNT,
-            address(token),
-            endTime
-        );
+        plugin.createStream(TEST_USERNAME, STREAM_AMOUNT, address(token), endTime);
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                DaoUnauthorized.selector,
-                address(dao),
-                address(plugin),
-                alice,
-                plugin.MANAGER_PERMISSION_ID()
+                DaoUnauthorized.selector, address(dao), address(plugin), alice, plugin.MANAGER_PERMISSION_ID()
             )
         );
 
@@ -466,12 +322,7 @@ contract PaymentsPluginTest is Test {
 
     function test_getStream_ShouldReturnCorrectStreamInformation() public {
         uint40 endTime = uint40(block.timestamp + STREAM_DURATION);
-        plugin.createStream(
-            TEST_USERNAME,
-            STREAM_AMOUNT,
-            address(token),
-            endTime
-        );
+        plugin.createStream(TEST_USERNAME, STREAM_AMOUNT, address(token), endTime);
 
         IPayments.Stream memory stream = plugin.getStream(TEST_USERNAME);
         assertEq(stream.token, address(token));
@@ -481,10 +332,7 @@ contract PaymentsPluginTest is Test {
         assertEq(stream.lastPayout, uint40(block.timestamp));
     }
 
-    function test_getStream_ShouldReturnEmptyForNonExistentStream()
-        public
-        view
-    {
+    function test_getStream_ShouldReturnEmptyForNonExistentStream() public view {
         IPayments.Stream memory stream = plugin.getStream("nonexistent");
         assertEq(stream.token, address(0));
         assertFalse(stream.active);
@@ -494,9 +342,7 @@ contract PaymentsPluginTest is Test {
     // Stream Migration Tests
     // =========================================================================
 
-    function test_migrateStream_UnauthorizedCaller_ShouldRevertWithUnauthorizedMigration()
-        public
-    {
+    function test_migrateStream_UnauthorizedCaller_ShouldRevertWithUnauthorizedMigration() public {
         string memory username = "bobmigrate";
 
         // Bob claims new username (alice already has one from setUp)
@@ -510,9 +356,7 @@ contract PaymentsPluginTest is Test {
         plugin.migrateStream(username);
     }
 
-    function test_migrateStream_StreamNotFound_ShouldRevertWithStreamNotFound()
-        public
-    {
+    function test_migrateStream_StreamNotFound_ShouldRevertWithStreamNotFound() public {
         string memory username = "bobmigrate2";
 
         // Bob claims username but no stream exists
@@ -524,9 +368,7 @@ contract PaymentsPluginTest is Test {
         plugin.migrateStream(username);
     }
 
-    function test_migrateStream_NoMigrationNeeded_ShouldRevertWithNoMigrationNeeded()
-        public
-    {
+    function test_migrateStream_NoMigrationNeeded_ShouldRevertWithNoMigrationNeeded() public {
         string memory username = "davidmigrate";
 
         // David claims username
@@ -543,9 +385,7 @@ contract PaymentsPluginTest is Test {
         plugin.migrateStream(username);
     }
 
-    function test_migrateStream_ValidMigration_ShouldEmitStreamMigrated()
-        public
-    {
+    function test_migrateStream_ValidMigration_ShouldEmitStreamMigrated() public {
         // Note: This test is challenging to implement in unit tests because:
         // 1. We need to mock the complex LlamaPay interactions
         // 2. We need to simulate address history properly

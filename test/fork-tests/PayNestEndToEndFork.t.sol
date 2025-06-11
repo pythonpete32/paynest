@@ -14,7 +14,7 @@ import {PaymentsPluginSetup} from "../../src/setup/PaymentsPluginSetup.sol";
 import {IPayments} from "../../src/interfaces/IPayments.sol";
 import {ILlamaPayFactory, ILlamaPay} from "../../src/interfaces/ILlamaPay.sol";
 import {ProxyLib} from "@aragon/osx-commons-contracts/src/utils/deployment/ProxyLib.sol";
-import {NON_EMPTY_BYTES} from "../constants.sol";
+import {NON_EMPTY_BYTES} from "../lib/constants.sol";
 
 /// @title PayNest End-to-End Fork Test
 /// @notice Comprehensive test demonstrating the complete PayNest workflow from DAO creation to payment execution

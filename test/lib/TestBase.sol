@@ -4,7 +4,7 @@ pragma solidity ^0.8.17;
 import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 import {IPluginSetup, PluginSetup} from "@aragon/osx/framework/plugin/setup/PluginSetupProcessor.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import {ALICE_ADDRESS, BOB_ADDRESS, CAROL_ADDRESS, DAVID_ADDRESS} from "../constants.sol";
+import {ALICE_ADDRESS, BOB_ADDRESS, CAROL_ADDRESS, DAVID_ADDRESS} from "./constants.sol";
 import {Test} from "forge-std/Test.sol";
 
 contract TestBase is Test {

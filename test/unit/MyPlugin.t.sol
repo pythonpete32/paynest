@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity ^0.8.17;
 
-import {TestBase} from "./lib/TestBase.sol";
+import {TestBase} from "../lib/TestBase.sol";
 
-import {SimpleBuilder} from "./builders/SimpleBuilder.sol";
+import {SimpleBuilder} from "../builders/SimpleBuilder.sol";
 import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 import {DaoUnauthorized} from "@aragon/osx-commons-contracts/src/permission/auth/auth.sol";
-import {MyPluginSetup} from "../src/setup/MyPluginSetup.sol";
-import {MyUpgradeablePlugin} from "../src/MyUpgradeablePlugin.sol";
+import {MyPluginSetup} from "../../src/setup/MyPluginSetup.sol";
+import {MyUpgradeablePlugin} from "../../src/MyUpgradeablePlugin.sol";
 
 contract MyUpgradeablePluginInitializeTest is TestBase {
     DAO dao;

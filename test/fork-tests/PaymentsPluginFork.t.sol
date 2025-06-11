@@ -13,7 +13,7 @@ import {AddressRegistry} from "../../src/AddressRegistry.sol";
 import {IPayments} from "../../src/interfaces/IPayments.sol";
 import {ILlamaPayFactory, ILlamaPay} from "../../src/interfaces/ILlamaPay.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {NON_EMPTY_BYTES} from "../constants.sol";
+import {NON_EMPTY_BYTES} from "../lib/constants.sol";
 
 contract PaymentsPluginForkTest is ForkTestBase {
     DAO internal dao;

@@ -15,7 +15,7 @@ import {IPayments} from "../../src/interfaces/IPayments.sol";
 import {IRegistry} from "../../src/interfaces/IRegistry.sol";
 import {ILlamaPayFactory, ILlamaPay} from "../../src/interfaces/ILlamaPay.sol";
 import {ProxyLib} from "@aragon/osx-commons-contracts/src/utils/deployment/ProxyLib.sol";
-import {NON_EMPTY_BYTES} from "../constants.sol";
+import {NON_EMPTY_BYTES} from "../lib/constants.sol";
 
 /// @title Stream Migration Fork Test
 /// @notice Comprehensive test for stream migration functionality with real contracts
