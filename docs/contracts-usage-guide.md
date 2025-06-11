@@ -142,47 +142,91 @@ paymentsPlugin.editStream("alice", newAmountPerSecond);
 paymentsPlugin.cancelStream("alice");
 ```
 
-## Address Change Workflow
+## Address Change and Stream Migration Workflow
 
 **This is a critical workflow for wallet recovery scenarios.**
 
 ### Scenario: User Loses Wallet Access
 
-When a user loses access to their wallet (hacked, lost keys, etc.), they need to update their address in the registry. However, existing LlamaPay streams are permanently tied to the original address.
+When a user loses access to their wallet (hacked, lost keys, etc.), they need to update their address in the registry. The system now supports user-driven stream migration to handle this automatically.
 
-#### Workflow Steps:
+#### Enhanced Registry Features
 
-1. **User Reports Issue**: User contacts DAO admin about wallet compromise
-2. **Address Update**: User (from new wallet) updates registry:
+The AddressRegistry now tracks address history:
+
+```solidity
+struct AddressHistory {
+    address currentAddress;
+    address previousAddress;  // For migration support
+    uint256 lastChangeTime;
+}
+
+// Get address history for migration
+IRegistry.AddressHistory memory history = registry.getAddressHistory("alice");
+```
+
+#### User-Driven Migration Workflow:
+
+1. **Address Update**: User (from new wallet) updates registry:
    ```solidity
    registry.updateUserAddress("alice", newWalletAddress);
    ```
-3. **Stream Handling**: Admin must handle existing streams:
+
+2. **Stream Migration**: User migrates their own streams:
    ```solidity
-   // Option A: Cancel old stream (returns funds to DAO)
-   paymentsPlugin.cancelStream("alice");
-   
-   // Create new stream for updated address
-   paymentsPlugin.createStream("alice", amount, token, endDate);
+   // Alice migrates her stream to new address (user-controlled)
+   paymentsPlugin.migrateStream("alice");
    ```
-4. **New Payments**: All future payments automatically go to new address
+
+3. **Automatic Resolution**: All future payments automatically go to new address
+
+#### Migration Function Details
+
+```solidity
+function migrateStream(string calldata username) external {
+    // Only current address holder can migrate
+    address currentAddress = registry.getUserAddress(username);
+    if (msg.sender != currentAddress) revert UnauthorizedMigration();
+    
+    Stream storage stream = streams[username];
+    if (!stream.active) revert StreamNotFound();
+    
+    address oldStreamRecipient = streamRecipients[username];
+    if (oldStreamRecipient == currentAddress) revert NoMigrationNeeded();
+    
+    // Migrate stream from old to new address
+    _migrateStreamToNewAddress(username, oldStreamRecipient, currentAddress);
+    
+    emit StreamMigrated(username, oldStreamRecipient, currentAddress);
+}
+```
+
+#### Migration Behavior:
+
+- **User-Controlled**: Only the current username holder can migrate
+- **Automatic Cleanup**: Old LlamaPay stream is cancelled (final payout to old address)
+- **Seamless Recreation**: New LlamaPay stream created for new address
+- **Identical Parameters**: Same amount, token, and end date
+- **Security**: Old compromised wallet cannot migrate after address change
 
 #### Important Notes:
 
-- **LlamaPay Limitation**: Streams cannot be transferred between addresses
-- **Manual Intervention Required**: DAO admin must manually recreate streams
-- **Immediate Effect**: New scheduled payments automatically use new address
-- **Security**: Old compromised wallet cannot access new streams
+- **No Admin Required**: Users migrate their own streams without admin intervention
+- **Scalable**: No O(N) complexity across multiple DAOs
+- **Final Payout**: Old address receives any accrued funds during migration
+- **Scheduled Payments Unaffected**: Automatically resolve to new address
+- **Multiple Migrations**: Users can migrate multiple times if needed
 
-### Example Address Change Test Case
+### Example Address Change and Migration Test Case
 
-Our test `test_UsernameAddressUpdateDuringPayments()` demonstrates this exact workflow:
+Our test `test_UsernameAddressUpdateDuringPayments()` demonstrates this enhanced workflow:
 
 1. Alice has active stream with original wallet
 2. Alice updates address (simulating wallet recovery)
 3. Old stream becomes inaccessible (LlamaPay tied to old address)
-4. Admin creates new stream for updated address
-5. Future payments work with new address
+4. **Alice migrates stream herself** (new user-driven approach)
+5. Stream works correctly with new address
+6. Future payments go to new address automatically
 
 ## Permission System
 
@@ -273,18 +317,18 @@ Our test `test_UsernameAddressUpdateDuringPayments()` demonstrates this exact wo
 
 ### Potential Improvements
 
-1. **Stream Migration**: Develop mechanism to transfer streams between addresses
-2. **Batch Operations**: Enable multiple payment operations in single transaction
-3. **Payment Notifications**: Event-based notification system
-4. **Advanced Scheduling**: More complex scheduling patterns
-5. **Multi-Token Support**: Enhanced support for various ERC20 tokens
+1. **Batch Operations**: Enable multiple payment operations in single transaction
+2. **Payment Notifications**: Event-based notification system
+3. **Advanced Scheduling**: More complex scheduling patterns
+4. **Multi-Token Support**: Enhanced support for various ERC20 tokens
+5. **Automated Migration Detection**: Frontend tools to automatically detect needed migrations
 
 ### Known Limitations
 
-1. **LlamaPay Address Binding**: Streams cannot be transferred between addresses
-2. **Single Registry**: One global registry per deployment
-3. **Manual Address Changes**: No automated stream migration
-4. **Gas Costs**: Individual payment execution can be expensive
+1. **Single Registry**: One global registry per deployment
+2. **Gas Costs**: Individual payment execution can be expensive
+3. **Manual Migration**: Users must manually trigger stream migration (though UI can help)
+4. **Migration Timing**: Old address receives final payout during migration
 
 ---
 

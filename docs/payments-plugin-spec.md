@@ -237,12 +237,76 @@ function _resolveUsername(string calldata username) internal view returns (addre
 - Validate returned address is not zero
 - Return resolved address
 
+### Stream Migration Functions
+
+```solidity
+function migrateStream(string calldata username) external;
+```
+
+**Purpose**: Allow users to migrate their streams to their current address after address changes.
+
+**Access Control**: Only the current username holder can call this function.
+
+**Function Logic**:
+- Validate caller is current username holder
+- Check stream exists and is active
+- Verify migration is needed (stream tied to old address)
+- Cancel old LlamaPay stream (final payout to old address)
+- Create new LlamaPay stream for current address
+- Update streamRecipients mapping
+- Emit StreamMigrated event
+
+**Implementation**:
+```solidity
+function migrateStream(string calldata username) external {
+    address currentAddress = registry.getUserAddress(username);
+    if (msg.sender != currentAddress) revert UnauthorizedMigration();
+    
+    Stream storage stream = streams[username];
+    if (!stream.active) revert StreamNotFound();
+    
+    address oldStreamRecipient = streamRecipients[username];
+    if (oldStreamRecipient == currentAddress) revert NoMigrationNeeded();
+    
+    _migrateStreamToNewAddress(username, oldStreamRecipient, currentAddress);
+    
+    emit StreamMigrated(username, oldStreamRecipient, currentAddress);
+}
+```
+
+```solidity
+function _migrateStreamToNewAddress(
+    string calldata username,
+    address oldAddress,
+    address newAddress
+) internal;
+```
+
+**Purpose**: Internal function to handle the stream migration process.
+
+**Function Logic**:
+- Get LlamaPay contract for the stream token
+- Cancel old LlamaPay stream (returns funds to DAO)
+- Create new LlamaPay stream for new address with same parameters
+- Update streamRecipients mapping
+
 ### View Functions
 
 ```solidity
 function getStream(string calldata username) external view returns (Stream memory);
 function getSchedule(string calldata username) external view returns (Schedule memory);
 ```
+
+### Storage Mappings
+
+```solidity
+mapping(string => Stream) public streams;
+mapping(string => address) public streamRecipients; // Track stream recipient addresses
+mapping(string => Schedule) public schedules;
+mapping(address => address) public tokenToLlamaPay;
+```
+
+**Note**: The `streamRecipients` mapping is crucial for migration functionality as it tracks which address each stream was created for, enabling proper migration when usernames change addresses.
 
 ### Custom Errors
 
@@ -257,6 +321,26 @@ error InvalidToken();
 error InvalidAmount();
 error StreamAlreadyExists();
 error ScheduleAlreadyExists();
+error InvalidEndDate();
+error InvalidFirstPaymentDate();
+error AmountPerSecondOverflow();
+error UnauthorizedMigration();
+error StreamNotFound();
+error NoMigrationNeeded();
+```
+
+### Events
+
+```solidity
+event StreamActive(string indexed username, address indexed token, uint40 endDate, uint256 totalAmount);
+event PaymentStreamCancelled(string indexed username, address indexed token);
+event StreamUpdated(string indexed username, address indexed token, uint256 newAmount);
+event StreamPayout(string indexed username, address indexed token, uint256 amount);
+event ScheduleActive(string indexed username, address indexed token, uint256 amount, IntervalType interval, bool isOneTime, uint40 firstPaymentDate);
+event PaymentScheduleCancelled(string indexed username, address indexed token);
+event ScheduleUpdated(string indexed username, address indexed token, uint256 newAmount);
+event SchedulePayout(string indexed username, address indexed token, uint256 amount, uint256 periods);
+event StreamMigrated(string indexed username, address indexed oldAddress, address indexed newAddress);
 ```
 
 ## Part 2: PaymentsPluginSetup Contract

@@ -7,8 +7,9 @@ import {IRegistry} from "./interfaces/IRegistry.sol";
 /// @notice A simple, global contract that manages username-to-address mappings for the PayNest ecosystem
 /// @dev Implements the IRegistry interface and provides basic username claiming and address resolution functionality
 contract AddressRegistry is IRegistry {
-    /// @notice Maps usernames to their owner addresses
-    mapping(string => address) public usernameToAddress;
+
+    /// @notice Maps usernames to their address history
+    mapping(string => AddressHistory) public userAddresses;
 
     /// @notice Maps addresses to their claimed usernames
     mapping(address => string) public addressToUsername;
@@ -31,7 +32,7 @@ contract AddressRegistry is IRegistry {
     function claimUsername(string calldata username) external {
         _validateUsername(username);
 
-        if (usernameToAddress[username] != address(0)) {
+        if (userAddresses[username].currentAddress != address(0)) {
             revert UsernameAlreadyClaimed();
         }
 
@@ -39,8 +40,12 @@ contract AddressRegistry is IRegistry {
             revert AddressAlreadyHasUsername();
         }
 
-        // Store bidirectional mapping
-        usernameToAddress[username] = msg.sender;
+        // Store address history and bidirectional mapping
+        userAddresses[username] = AddressHistory({
+            currentAddress: msg.sender,
+            previousAddress: address(0),
+            lastChangeTime: block.timestamp
+        });
         addressToUsername[msg.sender] = username;
 
         emit UsernameClaimed(username, msg.sender);
@@ -51,7 +56,7 @@ contract AddressRegistry is IRegistry {
     /// @param userAddress The new address to associate with the username
     /// @dev Only the current owner of the username can call this function
     function updateUserAddress(string calldata username, address userAddress) external {
-        if (usernameToAddress[username] != msg.sender) {
+        if (userAddresses[username].currentAddress != msg.sender) {
             revert NotUsernameOwner();
         }
 
@@ -63,11 +68,17 @@ contract AddressRegistry is IRegistry {
             revert AddressAlreadyHasUsername();
         }
 
+        address previousAddress = userAddresses[username].currentAddress;
+
         // Clear old address mapping
         delete addressToUsername[msg.sender];
 
-        // Update username to point to new address
-        usernameToAddress[username] = userAddress;
+        // Update address history
+        userAddresses[username] = AddressHistory({
+            currentAddress: userAddress,
+            previousAddress: previousAddress,
+            lastChangeTime: block.timestamp
+        });
 
         // Update new address mapping
         addressToUsername[userAddress] = username;
@@ -79,14 +90,21 @@ contract AddressRegistry is IRegistry {
     /// @param username The username to resolve
     /// @return The address associated with the username, or zero address if not found
     function getUserAddress(string calldata username) external view returns (address) {
-        return usernameToAddress[username];
+        return userAddresses[username].currentAddress;
+    }
+
+    /// @notice Get the address history for a username
+    /// @param username The username to get history for
+    /// @return The complete address history
+    function getAddressHistory(string calldata username) external view returns (AddressHistory memory) {
+        return userAddresses[username];
     }
 
     /// @notice Check if a username is available for claiming
     /// @param username The username to check
     /// @return True if the username is available, false otherwise
     function isUsernameAvailable(string calldata username) external view returns (bool) {
-        return usernameToAddress[username] == address(0);
+        return userAddresses[username].currentAddress == address(0);
     }
 
     /// @notice Get the username claimed by an address

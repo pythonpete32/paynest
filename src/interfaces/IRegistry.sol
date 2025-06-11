@@ -5,6 +5,13 @@ pragma solidity ^0.8.28;
 /// @notice Interface for username-to-address registry functionality
 /// @dev Defines the core functions for managing username registrations and address resolution
 interface IRegistry {
+    /// @notice Address history structure for tracking current and previous addresses
+    struct AddressHistory {
+        address currentAddress;
+        address previousAddress;
+        uint256 lastChangeTime;
+    }
+
     /// @notice Emitted when a username is claimed by an address
     /// @param username The username that was claimed
     /// @param claimor The address that claimed the username
@@ -19,6 +26,11 @@ interface IRegistry {
     /// @param username The username to resolve
     /// @return The address associated with the username, or zero address if not found
     function getUserAddress(string calldata username) external view returns (address);
+
+    /// @notice Get the address history for a username
+    /// @param username The username to get history for
+    /// @return The complete address history
+    function getAddressHistory(string calldata username) external view returns (AddressHistory memory);
 
     /// @notice Update the address associated with a username
     /// @param username The username to update
