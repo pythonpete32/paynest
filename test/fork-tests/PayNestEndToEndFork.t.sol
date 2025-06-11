@@ -96,20 +96,20 @@ contract PayNestEndToEndForkTest is ForkTestBase {
         // =========================================================================
         // 1. CREATE COMPANY DAO WITH PAYNEST
         // =========================================================================
-        
+
         console.log("=== 1. Creating Company DAO ===");
-        
+
         // Create a DAO for Acme Corp with company admin
-        (address daoAddress, address adminPlugin, address paymentsPluginAddress) = 
+        (address daoAddress, address adminPlugin, address paymentsPluginAddress) =
             factory.createPayNestDAO(companyAdmin, COMPANY_DAO_NAME);
-        
+
         dao = DAO(payable(daoAddress));
         paymentsPlugin = PaymentsPlugin(paymentsPluginAddress);
-        
+
         console.log("+ DAO created at:", daoAddress);
         console.log("+ Admin plugin at:", adminPlugin);
         console.log("+ Payments plugin at:", paymentsPluginAddress);
-        
+
         // Verify DAO was created correctly
         assertEq(address(paymentsPlugin.dao()), daoAddress, "Plugin should be connected to DAO");
         assertEq(address(paymentsPlugin.registry()), address(registry), "Plugin should use shared registry");
@@ -117,13 +117,13 @@ contract PayNestEndToEndForkTest is ForkTestBase {
         // =========================================================================
         // 2. FUND THE DAO TREASURY
         // =========================================================================
-        
+
         console.log("\n=== 2. Funding DAO Treasury ===");
-        
+
         // Transfer USDC from whale to DAO treasury
         vm.prank(USDC_WHALE);
         usdc.transfer(daoAddress, INITIAL_DAO_FUNDING);
-        
+
         uint256 daoBalance = usdc.balanceOf(daoAddress);
         console.log("+ DAO funded with USDC:", daoBalance / 1e6);
         assertEq(daoBalance, INITIAL_DAO_FUNDING, "DAO should be funded correctly");
@@ -131,26 +131,26 @@ contract PayNestEndToEndForkTest is ForkTestBase {
         // =========================================================================
         // 3. EMPLOYEES CLAIM USERNAMES
         // =========================================================================
-        
+
         console.log("\n=== 3. Employees Claiming Usernames ===");
-        
+
         // Employees claim their usernames
         vm.prank(aliceEmployee);
         registry.claimUsername("aliceEmployee");
         console.log("+ Alice claimed username 'aliceEmployee'");
-        
+
         vm.prank(bobEmployee);
         registry.claimUsername("bobEmployee");
         console.log("+ Bob claimed username 'bobEmployee'");
-        
+
         vm.prank(carolEmployee);
         registry.claimUsername("carolEmployee");
         console.log("+ Carol claimed username 'carolEmployee'");
-        
+
         vm.prank(freelancer);
         registry.claimUsername("freelancer");
         console.log("+ Freelancer claimed username 'freelancer'");
-        
+
         // Verify username resolution
         assertEq(registry.getUserAddress("aliceEmployee"), aliceEmployee, "Alice username should resolve correctly");
         assertEq(registry.getUserAddress("bobEmployee"), bobEmployee, "Bob username should resolve correctly");
@@ -160,28 +160,28 @@ contract PayNestEndToEndForkTest is ForkTestBase {
         // =========================================================================
         // 4. SETUP MONTHLY SALARY STREAMS
         // =========================================================================
-        
+
         console.log("\n=== 4. Setting up Monthly Salary Streams ===");
-        
+
         uint40 streamEndDate = uint40(block.timestamp + 365 days); // 1 year
-        
+
         // Company admin creates monthly salary streams for employees
         vm.startPrank(companyAdmin);
-        
+
         // Create salary stream for Alice
         paymentsPlugin.createStream("aliceEmployee", MONTHLY_SALARY, address(usdc), streamEndDate);
         console.log("+ Created monthly salary stream for Alice:", MONTHLY_SALARY / 1e6, "USDC");
-        
+
         // Create salary stream for Bob
         paymentsPlugin.createStream("bobEmployee", MONTHLY_SALARY, address(usdc), streamEndDate);
         console.log("+ Created monthly salary stream for Bob:", MONTHLY_SALARY / 1e6, "USDC");
-        
+
         vm.stopPrank();
-        
+
         // Verify streams were created
         IPayments.Stream memory aliceEmployeeStream = paymentsPlugin.getStream("aliceEmployee");
         IPayments.Stream memory bobEmployeeStream = paymentsPlugin.getStream("bobEmployee");
-        
+
         assertTrue(aliceEmployeeStream.active, "Alice's stream should be active");
         assertTrue(bobEmployeeStream.active, "Bob's stream should be active");
         assertEq(aliceEmployeeStream.token, address(usdc), "Alice's stream should use USDC");
@@ -190,13 +190,13 @@ contract PayNestEndToEndForkTest is ForkTestBase {
         // =========================================================================
         // 5. SETUP WEEKLY ALLOWANCE SCHEDULES
         // =========================================================================
-        
+
         console.log("\n=== 5. Setting up Weekly Allowance Schedules ===");
-        
+
         uint40 firstAllowanceDate = uint40(block.timestamp + 7 days);
-        
+
         vm.startPrank(companyAdmin);
-        
+
         // Create weekly allowance for Carol (recurring)
         paymentsPlugin.createSchedule(
             "carolEmployee",
@@ -207,26 +207,30 @@ contract PayNestEndToEndForkTest is ForkTestBase {
             firstAllowanceDate
         );
         console.log("+ Created weekly allowance schedule for Carol:", WEEKLY_ALLOWANCE / 1e6, "USDC");
-        
+
         vm.stopPrank();
-        
+
         // Verify schedule was created
         IPayments.Schedule memory carolEmployeeSchedule = paymentsPlugin.getSchedule("carolEmployee");
         assertTrue(carolEmployeeSchedule.active, "Carol's schedule should be active");
         assertEq(carolEmployeeSchedule.amount, WEEKLY_ALLOWANCE, "Carol's schedule should have correct amount");
-        assertEq(uint8(carolEmployeeSchedule.interval), uint8(IPayments.IntervalType.Weekly), "Carol's schedule should be weekly");
+        assertEq(
+            uint8(carolEmployeeSchedule.interval),
+            uint8(IPayments.IntervalType.Weekly),
+            "Carol's schedule should be weekly"
+        );
         assertFalse(carolEmployeeSchedule.isOneTime, "Carol's schedule should be recurring");
 
         // =========================================================================
         // 6. SETUP ONE-TIME PROJECT PAYMENT
         // =========================================================================
-        
+
         console.log("\n=== 6. Setting up One-time Project Payment ===");
-        
+
         uint40 projectPaymentDate = uint40(block.timestamp + 3 days);
-        
+
         vm.startPrank(companyAdmin);
-        
+
         // Create one-time project payment for freelancer
         paymentsPlugin.createSchedule(
             "freelancer",
@@ -237,9 +241,9 @@ contract PayNestEndToEndForkTest is ForkTestBase {
             projectPaymentDate
         );
         console.log("+ Created one-time project payment for freelancer:", PROJECT_PAYMENT / 1e6, "USDC");
-        
+
         vm.stopPrank();
-        
+
         // Verify one-time payment was created
         IPayments.Schedule memory freelancerSchedule = paymentsPlugin.getSchedule("freelancer");
         assertTrue(freelancerSchedule.active, "Freelancer's schedule should be active");
@@ -249,61 +253,79 @@ contract PayNestEndToEndForkTest is ForkTestBase {
         // =========================================================================
         // 7. TIME PROGRESSION - SIMULATE REAL USAGE
         // =========================================================================
-        
+
         console.log("\n=== 7. Time Progression and Payment Execution ===");
-        
+
         // Fast forward 1 week to allow some streaming
         console.log("* Fast forwarding 1 week...");
         vm.warp(block.timestamp + 7 days);
-        
+
         // Alice requests her weekly salary payout
         console.log("\n--- Alice requests weekly salary payout ---");
         uint256 aliceEmployeeBalanceBefore = usdc.balanceOf(aliceEmployee);
         uint256 aliceEmployeePayout = paymentsPlugin.requestStreamPayout("aliceEmployee");
         uint256 aliceEmployeeBalanceAfter = usdc.balanceOf(aliceEmployee);
-        
+
         console.log("+ Alice received payout:", aliceEmployeePayout / 1e6, "USDC");
-        assertEq(aliceEmployeeBalanceAfter - aliceEmployeeBalanceBefore, aliceEmployeePayout, "Alice should receive correct payout");
+        assertEq(
+            aliceEmployeeBalanceAfter - aliceEmployeeBalanceBefore,
+            aliceEmployeePayout,
+            "Alice should receive correct payout"
+        );
         assertTrue(aliceEmployeePayout > 0, "Alice should receive some payment after 1 week");
-        
+
         // Bob requests his weekly salary payout
         console.log("\n--- Bob requests weekly salary payout ---");
         uint256 bobEmployeeBalanceBefore = usdc.balanceOf(bobEmployee);
         uint256 bobEmployeePayout = paymentsPlugin.requestStreamPayout("bobEmployee");
         uint256 bobEmployeeBalanceAfter = usdc.balanceOf(bobEmployee);
-        
+
         console.log("+ Bob received payout:", bobEmployeePayout / 1e6, "USDC");
-        assertEq(bobEmployeeBalanceAfter - bobEmployeeBalanceBefore, bobEmployeePayout, "Bob should receive correct payout");
+        assertEq(
+            bobEmployeeBalanceAfter - bobEmployeeBalanceBefore, bobEmployeePayout, "Bob should receive correct payout"
+        );
         assertTrue(bobEmployeePayout > 0, "Bob should receive some payment after 1 week");
-        
+
         // Carol requests her weekly allowance (should be available now)
         console.log("\n--- Carol requests weekly allowance ---");
         uint256 carolEmployeeBalanceBefore = usdc.balanceOf(carolEmployee);
         paymentsPlugin.requestSchedulePayout("carolEmployee");
         uint256 carolEmployeeBalanceAfter = usdc.balanceOf(carolEmployee);
-        
-        console.log("+ Carol received allowance:", (carolEmployeeBalanceAfter - carolEmployeeBalanceBefore) / 1e6, "USDC");
-        assertEq(carolEmployeeBalanceAfter - carolEmployeeBalanceBefore, WEEKLY_ALLOWANCE, "Carol should receive full weekly allowance");
+
+        console.log(
+            "+ Carol received allowance:", (carolEmployeeBalanceAfter - carolEmployeeBalanceBefore) / 1e6, "USDC"
+        );
+        assertEq(
+            carolEmployeeBalanceAfter - carolEmployeeBalanceBefore,
+            WEEKLY_ALLOWANCE,
+            "Carol should receive full weekly allowance"
+        );
 
         // =========================================================================
         // 8. PROJECT PAYMENT EXECUTION
         // =========================================================================
-        
+
         console.log("\n=== 8. Project Payment Execution ===");
-        
+
         // Fast forward to project payment date
         console.log("* Fast forwarding to project payment date...");
         vm.warp(projectPaymentDate);
-        
+
         // Freelancer requests their project payment
         console.log("\n--- Freelancer requests project payment ---");
         uint256 freelancerBalanceBefore = usdc.balanceOf(freelancer);
         paymentsPlugin.requestSchedulePayout("freelancer");
         uint256 freelancerBalanceAfter = usdc.balanceOf(freelancer);
-        
-        console.log("+ Freelancer received project payment:", (freelancerBalanceAfter - freelancerBalanceBefore) / 1e6, "USDC");
-        assertEq(freelancerBalanceAfter - freelancerBalanceBefore, PROJECT_PAYMENT, "Freelancer should receive full project payment");
-        
+
+        console.log(
+            "+ Freelancer received project payment:", (freelancerBalanceAfter - freelancerBalanceBefore) / 1e6, "USDC"
+        );
+        assertEq(
+            freelancerBalanceAfter - freelancerBalanceBefore,
+            PROJECT_PAYMENT,
+            "Freelancer should receive full project payment"
+        );
+
         // Verify one-time payment is now inactive
         IPayments.Schedule memory freelancerScheduleAfter = paymentsPlugin.getSchedule("freelancer");
         assertFalse(freelancerScheduleAfter.active, "Freelancer's one-time schedule should be inactive after payout");
@@ -311,19 +333,19 @@ contract PayNestEndToEndForkTest is ForkTestBase {
         // =========================================================================
         // 9. MULTI-PERIOD CATCH-UP PAYMENTS
         // =========================================================================
-        
+
         console.log("\n=== 9. Multi-period Catch-up Payments ===");
-        
+
         // Fast forward 3 more weeks (missed 3 allowance payments)
         console.log("* Fast forwarding 3 more weeks (Carol misses 3 allowance periods)...");
         vm.warp(block.timestamp + 21 days);
-        
+
         // Carol requests catch-up allowance (should get multiple weeks worth)
         console.log("\n--- Carol requests catch-up allowance ---");
         carolEmployeeBalanceBefore = usdc.balanceOf(carolEmployee);
         paymentsPlugin.requestSchedulePayout("carolEmployee");
         carolEmployeeBalanceAfter = usdc.balanceOf(carolEmployee);
-        
+
         uint256 catchUpAmount = carolEmployeeBalanceAfter - carolEmployeeBalanceBefore;
         console.log("+ Carol received catch-up payment:", catchUpAmount / 1e6, "USDC");
         // Due to timing differences, just verify she got some catch-up payment
@@ -332,32 +354,32 @@ contract PayNestEndToEndForkTest is ForkTestBase {
         // =========================================================================
         // 10. STREAM MANAGEMENT - EDITING AND CANCELLATION
         // =========================================================================
-        
+
         console.log("\n=== 10. Stream Management ===");
-        
+
         // Company admin gives Bob a raise
         console.log("\n--- Bob gets a raise ---");
         uint256 newSalary = MONTHLY_SALARY + 1000e6; // +1000 USDC raise
-        
+
         vm.prank(companyAdmin);
         paymentsPlugin.editStream("bobEmployee", newSalary);
         console.log("+ Bob's salary increased to:", newSalary / 1e6, "USDC per month");
-        
+
         // Verify stream was updated
         IPayments.Stream memory bobEmployeeStreamUpdated = paymentsPlugin.getStream("bobEmployee");
         // The amount per second should be different now (we can't easily calculate exact value due to decimals)
         assertTrue(bobEmployeeStreamUpdated.active, "Bob's stream should still be active");
-        
+
         // Alice leaves the company - cancel her stream
         console.log("\n--- Alice leaves the company ---");
         uint256 daoBalanceBeforeCancel = usdc.balanceOf(address(dao));
-        
+
         vm.prank(companyAdmin);
         paymentsPlugin.cancelStream("aliceEmployee");
         console.log("+ Alice's stream cancelled");
-        
+
         uint256 daoBalanceAfterCancel = usdc.balanceOf(address(dao));
-        
+
         // Verify stream was cancelled and funds returned to DAO
         IPayments.Stream memory aliceEmployeeStreamCancelled = paymentsPlugin.getStream("aliceEmployee");
         assertFalse(aliceEmployeeStreamCancelled.active, "Alice's stream should be inactive");
@@ -366,50 +388,53 @@ contract PayNestEndToEndForkTest is ForkTestBase {
         // =========================================================================
         // 11. FINAL VERIFICATION AND REPORTING
         // =========================================================================
-        
+
         console.log("\n=== 11. Final State Verification ===");
-        
+
         // Check final balances
         uint256 finalDAOBalance = usdc.balanceOf(address(dao));
         uint256 finalAliceBalance = usdc.balanceOf(aliceEmployee);
         uint256 finalBobBalance = usdc.balanceOf(bobEmployee);
         uint256 finalCarolBalance = usdc.balanceOf(carolEmployee);
         uint256 finalFreelancerBalance = usdc.balanceOf(freelancer);
-        
+
         console.log("\n--- Final Balances ---");
         console.log("DAO Treasury:", finalDAOBalance / 1e6, "USDC");
         console.log("Alice:", finalAliceBalance / 1e6, "USDC");
         console.log("Bob:", finalBobBalance / 1e6, "USDC");
         console.log("Carol:", finalCarolBalance / 1e6, "USDC");
         console.log("Freelancer:", finalFreelancerBalance / 1e6, "USDC");
-        
+
         // Verify all payments were made correctly
         assertTrue(finalAliceBalance > 0, "Alice should have received salary payments");
         assertTrue(finalBobBalance > 0, "Bob should have received salary payments");
-        assertTrue(finalCarolBalance >= WEEKLY_ALLOWANCE * 3, "Carol should have received at least 3 weeks of allowance");
+        assertTrue(
+            finalCarolBalance >= WEEKLY_ALLOWANCE * 3, "Carol should have received at least 3 weeks of allowance"
+        );
         assertEq(finalFreelancerBalance, PROJECT_PAYMENT, "Freelancer should have received project payment");
-        
+
         // Verify DAO still has funds remaining
         assertTrue(finalDAOBalance > 0, "DAO should still have remaining funds");
-        
+
         // Calculate total distributed
         uint256 totalDistributed = finalAliceBalance + finalBobBalance + finalCarolBalance + finalFreelancerBalance;
         uint256 totalSpent = INITIAL_DAO_FUNDING - finalDAOBalance;
-        
+
         console.log("\n--- Summary ---");
         console.log("Total funds distributed:", totalDistributed / 1e6, "USDC");
         console.log("Total DAO spent:", totalSpent / 1e6, "USDC");
         console.log("Remaining in DAO:", finalDAOBalance / 1e6, "USDC");
-        
+
         // Basic sanity checks (allowing for small rounding differences due to LlamaPay precision)
-        uint256 difference = totalDistributed > totalSpent ? totalDistributed - totalSpent : totalSpent - totalDistributed;
+        uint256 difference =
+            totalDistributed > totalSpent ? totalDistributed - totalSpent : totalSpent - totalDistributed;
         assertTrue(difference <= 10, "Distributed amount should match DAO spending within 10 wei");
-        
-        uint256 conservationDifference = INITIAL_DAO_FUNDING > finalDAOBalance + totalSpent 
-            ? INITIAL_DAO_FUNDING - finalDAOBalance - totalSpent 
+
+        uint256 conservationDifference = INITIAL_DAO_FUNDING > finalDAOBalance + totalSpent
+            ? INITIAL_DAO_FUNDING - finalDAOBalance - totalSpent
             : finalDAOBalance + totalSpent - INITIAL_DAO_FUNDING;
         assertTrue(conservationDifference <= 10, "Conservation of funds within 10 wei");
-        
+
         console.log("\n! END-TO-END TEST COMPLETED SUCCESSFULLY! !");
         console.log("+ DAO Factory working");
         console.log("+ Username Registry working");
@@ -428,68 +453,66 @@ contract PayNestEndToEndForkTest is ForkTestBase {
         // ===================================================================
         // ARRANGE: Set up DAO with admin permissions and fund treasury
         // ===================================================================
-        
+
         // Create DAO with specific admin
-        (address daoAddress,, address paymentsPluginAddress) = 
-            factory.createPayNestDAO(companyAdmin, "admin-test-dao");
-        
+        (address daoAddress,, address paymentsPluginAddress) = factory.createPayNestDAO(companyAdmin, "admin-test-dao");
+
         dao = DAO(payable(daoAddress));
         paymentsPlugin = PaymentsPlugin(paymentsPluginAddress);
-        
+
         // Fund DAO treasury
         vm.prank(USDC_WHALE);
         usdc.transfer(daoAddress, 10_000e6);
-        
+
         // Employee claims username
         vm.prank(aliceEmployee);
         registry.claimUsername("aliceadmintest");
-        
+
         // ===================================================================
         // ACT & ASSERT: Test unauthorized payment creation (should fail)
         // ===================================================================
-        
+
         // 1. VERIFY: Non-admin cannot create payments
         vm.expectRevert(); // Should revert due to lack of MANAGER_PERMISSION
         paymentsPlugin.createStream("aliceadmintest", 1000e6, address(usdc), uint40(block.timestamp + 30 days));
-        
+
         // ===================================================================
         // ACT: Admin creates payment (should succeed)
         // ===================================================================
-        
+
         vm.prank(companyAdmin);
         paymentsPlugin.createStream("aliceadmintest", 1000e6, address(usdc), uint40(block.timestamp + 30 days));
-        
+
         // ===================================================================
         // ASSERT: Verify payment was created and can be executed
         // ===================================================================
-        
+
         // 2. VERIFY: Stream was created successfully
         IPayments.Stream memory stream = paymentsPlugin.getStream("aliceadmintest");
         assertTrue(stream.active, "Stream should be active after creation");
         assertEq(stream.token, address(usdc), "Stream should use correct token");
-        
+
         // ===================================================================
         // ACT: Anyone requests payout (intended behavior)
         // ===================================================================
-        
+
         vm.warp(block.timestamp + 7 days);
         uint256 aliceBalanceBefore = usdc.balanceOf(aliceEmployee);
         uint256 payout = paymentsPlugin.requestStreamPayout("aliceadmintest");
-        
+
         // ===================================================================
         // ASSERT: Verify payout execution and access control model
         // ===================================================================
-        
+
         // 3. VERIFY: Payout was successful and went to correct recipient
         assertTrue(payout > 0, "Payout amount should be greater than zero");
-        assertEq(usdc.balanceOf(aliceEmployee), aliceBalanceBefore + payout, 
-            "Alice should receive the payout amount");
-        
+        assertEq(usdc.balanceOf(aliceEmployee), aliceBalanceBefore + payout, "Alice should receive the payout amount");
+
         // 4. VERIFY: Access control model working as intended
         // - Only admin can create/manage payments (tested above)
         // - Anyone can execute payouts (just demonstrated)
         // - Payouts go to username holder regardless of who triggers them
-        
+
         console.log("+ Admin-controlled payment execution verified");
     }
 
@@ -500,135 +523,154 @@ contract PayNestEndToEndForkTest is ForkTestBase {
         // ===================================================================
         // ARRANGE: Set up DAO, funding, username claim, and active stream
         // ===================================================================
-        
+
         // Create a new DAO for this test scenario
-        (address daoAddress,, address paymentsPluginAddress) = 
-            factory.createPayNestDAO(companyAdmin, "update-test-dao");
-        
+        (address daoAddress,, address paymentsPluginAddress) = factory.createPayNestDAO(companyAdmin, "update-test-dao");
+
         dao = DAO(payable(daoAddress));
         paymentsPlugin = PaymentsPlugin(paymentsPluginAddress);
-        
+
         // Fund the DAO treasury with USDC
         vm.prank(USDC_WHALE);
         usdc.transfer(daoAddress, 10_000e6);
-        
+
         // Alice claims her username
         vm.prank(aliceEmployee);
         registry.claimUsername("alicemobile");
-        
+
         // Admin creates a streaming payment for Alice
         vm.prank(companyAdmin);
         paymentsPlugin.createStream("alicemobile", 1000e6, address(usdc), uint40(block.timestamp + 30 days));
-        
+
         // Allow some time to pass and Alice withdraws from original stream
         vm.warp(block.timestamp + 7 days);
         uint256 aliceEmployeeOriginalBalance = usdc.balanceOf(aliceEmployee);
         uint256 originalPayout = paymentsPlugin.requestStreamPayout("alicemobile");
-        
+
         // Store original stream state for verification
         IPayments.Stream memory originalStream = paymentsPlugin.getStream("alicemobile");
-        
+
         // ===================================================================
         // ACT: Alice updates her address (simulating wallet compromise/recovery)
         // ===================================================================
-        
+
         address aliceEmployeeNewAddress = makeAddr("aliceEmployeeNewWallet");
         vm.prank(aliceEmployee);
         registry.updateUserAddress("alicemobile", aliceEmployeeNewAddress);
-        
+
         // ===================================================================
         // ASSERT: Verify intended protocol behavior
         // ===================================================================
-        
+
         // 1. VERIFY: Alice received payout from original stream before address change
-        assertEq(usdc.balanceOf(aliceEmployee), aliceEmployeeOriginalBalance + originalPayout, 
-            "Alice should have received payout to original address");
+        assertEq(
+            usdc.balanceOf(aliceEmployee),
+            aliceEmployeeOriginalBalance + originalPayout,
+            "Alice should have received payout to original address"
+        );
         assertTrue(originalStream.active, "Original stream should have been active");
-        
+
         // 2. VERIFY: Username now resolves to new address
-        assertEq(registry.getUserAddress("alicemobile"), aliceEmployeeNewAddress, 
-            "Username should resolve to updated address");
-        
+        assertEq(
+            registry.getUserAddress("alicemobile"),
+            aliceEmployeeNewAddress,
+            "Username should resolve to updated address"
+        );
+
         // 3. VERIFY: Existing stream becomes inaccessible (INTENDED BEHAVIOR)
         // This is because LlamaPay streams are permanently tied to the creation-time address
         vm.warp(block.timestamp + 7 days);
         vm.expectRevert("stream doesn't exist");
         paymentsPlugin.requestStreamPayout("alicemobile");
-        
+
         // ===================================================================
         // ACT: Alice migrates her stream to new address (USER-DRIVEN RECOVERY)
         // ===================================================================
-        
+
         console.log("\\n--- Alice migrates her stream to new address ---");
-        
+
         // Only Alice (from new wallet) can migrate her stream
         vm.expectRevert(PaymentsPlugin.UnauthorizedMigration.selector);
         vm.prank(aliceEmployee); // Old wallet can't migrate
         paymentsPlugin.migrateStream("alicemobile");
-        
+
         // Record balances before migration
         uint256 aliceEmployeeBalanceBeforeMigration = usdc.balanceOf(aliceEmployee);
-        
+
         // Alice migrates stream from new wallet
         vm.prank(aliceEmployeeNewAddress);
         paymentsPlugin.migrateStream("alicemobile");
-        
+
         console.log("+ Alice successfully migrated stream to new address");
-        
+
         // ===================================================================
         // ASSERT: Verify stream works correctly after migration
         // ===================================================================
-        
+
         // 4. VERIFY: Stream is now accessible from new address
         vm.warp(block.timestamp + 7 days);
         uint256 aliceEmployeeNewBalance = usdc.balanceOf(aliceEmployeeNewAddress);
         uint256 newPayout = paymentsPlugin.requestStreamPayout("alicemobile");
-        
+
         // 5. VERIFY: New address receives payouts
-        assertEq(usdc.balanceOf(aliceEmployeeNewAddress), aliceEmployeeNewBalance + newPayout, 
-            "New address should receive stream payouts after migration");
+        assertEq(
+            usdc.balanceOf(aliceEmployeeNewAddress),
+            aliceEmployeeNewBalance + newPayout,
+            "New address should receive stream payouts after migration"
+        );
         assertTrue(newPayout > 0, "Alice should receive payout after migration");
-        
+
         // 6. VERIFY: Old address receives final payout during migration (INTENDED BEHAVIOR)
         uint256 aliceEmployeeFinalBalance = usdc.balanceOf(aliceEmployee);
         console.log("Balance before migration:", aliceEmployeeBalanceBeforeMigration);
         console.log("Balance after migration:", aliceEmployeeFinalBalance);
-        
+
         // The old address should receive any remaining streamed funds when the stream is cancelled during migration
         // This is LlamaPay's intended behavior - no funds are lost during cancellation
-        assertTrue(aliceEmployeeFinalBalance > aliceEmployeeBalanceBeforeMigration,
-            "Original address should receive final payout during migration");
-            
+        assertTrue(
+            aliceEmployeeFinalBalance > aliceEmployeeBalanceBeforeMigration,
+            "Original address should receive final payout during migration"
+        );
+
         // Calculate what the final payout to old address was
         uint256 finalPayoutToOldAddress = aliceEmployeeFinalBalance - aliceEmployeeBalanceBeforeMigration;
         console.log("Final payout to old address during migration:", finalPayoutToOldAddress);
         assertTrue(finalPayoutToOldAddress > 0, "Old address should receive final accrued funds");
-        
+
         // 7. VERIFY: Stream metadata is updated correctly
-        assertEq(paymentsPlugin.streamRecipients("alicemobile"), aliceEmployeeNewAddress,
-            "Stream recipient should be updated to new address");
-        
+        assertEq(
+            paymentsPlugin.streamRecipients("alicemobile"),
+            aliceEmployeeNewAddress,
+            "Stream recipient should be updated to new address"
+        );
+
         IPayments.Stream memory migratedStream = paymentsPlugin.getStream("alicemobile");
         assertTrue(migratedStream.active, "Stream should remain active after migration");
         assertEq(migratedStream.token, address(usdc), "Stream token should be unchanged");
         assertEq(migratedStream.amount, originalStream.amount, "Stream amount should be unchanged");
-        
+
         // 8. VERIFY: Future payouts go only to new address
         vm.warp(block.timestamp + 7 days);
         uint256 aliceEmployeeBalanceBeforeSecondPayout = usdc.balanceOf(aliceEmployee);
         uint256 aliceEmployeeNewBalanceBeforeSecondPayout = usdc.balanceOf(aliceEmployeeNewAddress);
-        
+
         uint256 secondPayout = paymentsPlugin.requestStreamPayout("alicemobile");
-        
+
         // Old address balance should not change
-        assertEq(usdc.balanceOf(aliceEmployee), aliceEmployeeBalanceBeforeSecondPayout,
-            "Old address should not receive future payouts after migration");
-            
+        assertEq(
+            usdc.balanceOf(aliceEmployee),
+            aliceEmployeeBalanceBeforeSecondPayout,
+            "Old address should not receive future payouts after migration"
+        );
+
         // New address should receive the payout
-        assertEq(usdc.balanceOf(aliceEmployeeNewAddress), aliceEmployeeNewBalanceBeforeSecondPayout + secondPayout,
-            "New address should receive future payouts after migration");
+        assertEq(
+            usdc.balanceOf(aliceEmployeeNewAddress),
+            aliceEmployeeNewBalanceBeforeSecondPayout + secondPayout,
+            "New address should receive future payouts after migration"
+        );
         assertTrue(secondPayout > 0, "Second payout should be greater than zero");
-        
+
         console.log("+ Username address update and migration verified - user-controlled recovery working");
     }
 }

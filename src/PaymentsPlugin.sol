@@ -507,11 +507,7 @@ contract PaymentsPlugin is PluginUUPSUpgradeable, IPayments {
     /// @param username The username being migrated
     /// @param oldAddress The previous address
     /// @param newAddress The new address
-    function _migrateStreamToNewAddress(
-        string calldata username,
-        address oldAddress,
-        address newAddress
-    ) internal {
+    function _migrateStreamToNewAddress(string calldata username, address oldAddress, address newAddress) internal {
         Stream storage stream = streams[username];
 
         // Get LlamaPay contract for the token

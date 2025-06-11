@@ -651,7 +651,7 @@ contract AddressRegistryTest is TestBase {
 
     function test_getAddressHistory_NonExistentUsername_ShouldReturnZeroValues() public {
         IRegistry.AddressHistory memory history = registry.getAddressHistory("nonexistent");
-        
+
         assertEq(history.currentAddress, address(0));
         assertEq(history.previousAddress, address(0));
         assertEq(history.lastChangeTime, 0);

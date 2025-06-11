@@ -378,7 +378,7 @@ contract PaymentsPluginTest is Test {
         // Mock a stream that's already tied to current address
         // Note: In unit tests, we can't easily test the full migration flow without mocking
         // This would be better tested in fork tests with real LlamaPay integration
-        
+
         // For now, we'll test the error case where username doesn't exist
         vm.expectRevert(PaymentsPlugin.StreamNotFound.selector);
         vm.prank(david);

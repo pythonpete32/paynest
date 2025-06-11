@@ -326,7 +326,7 @@ contract StreamMigrationForkTest is ForkTestBase {
         console.log("+ Multiple address changes test passed!");
     }
 
-    /// @notice INTENDED BEHAVIOR: After migration, the stream should work exactly like 
+    /// @notice INTENDED BEHAVIOR: After migration, the stream should work exactly like
     /// a newly created stream, with no functional differences.
     function test_PostMigrationStreamFunctionality() external {
         // ===================================================================
@@ -374,7 +374,7 @@ contract StreamMigrationForkTest is ForkTestBase {
 
         uint256 daoBalanceAfter = usdc.balanceOf(address(dao));
         IPayments.Stream memory cancelledStream = paymentsPlugin.getStream("alice");
-        
+
         assertFalse(cancelledStream.active, "Stream should be inactive after cancellation");
         assertTrue(daoBalanceAfter > daoBalanceBefore, "DAO should recover funds from cancelled stream");
 
