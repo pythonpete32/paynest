@@ -1,0 +1,21 @@
+{
+  "network": "base",
+  "chainId": 8453,
+  "deployer": "0x47d80912400ef8f8224531EBEB1ce8f2ACf4b75a",
+  "timestamp": 1749616365,
+  "blockNumber": 31413509,
+  "contracts": {
+    "AddressRegistry": "0x0BA348C3a4E8d65516aF934258C1ecB0A0691676",
+    "PaymentsPluginSetup": "0xAdE7003521E804d8aA3FD32d6FB3088fa2129882",
+    "PaymentsPluginRepo": "0xbe203F5f0C3aF11A961c2c426AE7649a1a011028",
+    "PayNestDAOFactory": "0x5af13f848D21F93d5BaFF7D2bA74f29Ec2aD725B",
+    "LlamaPayFactory": "0x09c39B8311e4B7c678cBDAD76556877ecD3aEa07",
+    "DAOFactory": "0xcc602EA573a42eBeC290f33F49D4A87177ebB8d2",
+    "PluginRepoFactory": "0xAAAb8c6b83a5C7b1462af4427d97b33197388C38"
+  },
+  "pluginInfo": {
+    "ensSubdomain": "paynet-payments",
+    "ensDomain": "paynet-payments.plugin.dao.eth",
+    "maintainer": "0x47d80912400ef8f8224531EBEB1ce8f2ACf4b75a"
+  }
+}

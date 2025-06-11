@@ -15,6 +15,7 @@ contract PayNestDAOFactoryTest is TestBase {
     DAOFactory internal mockDAOFactory;
     PluginRepo internal mockAdminPluginRepo;
     PluginRepo internal mockPaymentsPluginRepo;
+    address internal mockLlamaPayFactory;
 
     string constant TEST_DAO_NAME = "test-dao";
     address constant TEST_ADMIN = address(0x123);
@@ -28,6 +29,7 @@ contract PayNestDAOFactoryTest is TestBase {
         mockDAOFactory = DAOFactory(address(0x456));
         mockAdminPluginRepo = PluginRepo(address(0x789));
         mockPaymentsPluginRepo = PluginRepo(address(0xABC));
+        mockLlamaPayFactory = address(0xDEF);
 
         // Don't deploy factory in setUp since most tests are for constructor validation
         // Individual tests will create their own factories as needed
@@ -36,22 +38,39 @@ contract PayNestDAOFactoryTest is TestBase {
     // Constructor validation tests
     function test_RevertWhen_AddressRegistryIsZero() external {
         vm.expectRevert(PayNestDAOFactory.AdminAddressZero.selector);
-        new PayNestDAOFactory(AddressRegistry(address(0)), mockDAOFactory, mockAdminPluginRepo, mockPaymentsPluginRepo);
+        new PayNestDAOFactory(
+            AddressRegistry(address(0)),
+            mockDAOFactory,
+            mockAdminPluginRepo,
+            mockPaymentsPluginRepo,
+            mockLlamaPayFactory
+        );
     }
 
     function test_RevertWhen_DaoFactoryIsZero() external {
         vm.expectRevert(PayNestDAOFactory.AdminAddressZero.selector);
-        new PayNestDAOFactory(mockRegistry, DAOFactory(address(0)), mockAdminPluginRepo, mockPaymentsPluginRepo);
+        new PayNestDAOFactory(
+            mockRegistry, DAOFactory(address(0)), mockAdminPluginRepo, mockPaymentsPluginRepo, mockLlamaPayFactory
+        );
     }
 
     function test_RevertWhen_AdminPluginRepoIsZero() external {
         vm.expectRevert(PayNestDAOFactory.AdminAddressZero.selector);
-        new PayNestDAOFactory(mockRegistry, mockDAOFactory, PluginRepo(address(0)), mockPaymentsPluginRepo);
+        new PayNestDAOFactory(
+            mockRegistry, mockDAOFactory, PluginRepo(address(0)), mockPaymentsPluginRepo, mockLlamaPayFactory
+        );
     }
 
     function test_RevertWhen_PaymentsPluginRepoIsZero() external {
         vm.expectRevert(PayNestDAOFactory.AdminAddressZero.selector);
-        new PayNestDAOFactory(mockRegistry, mockDAOFactory, mockAdminPluginRepo, PluginRepo(address(0)));
+        new PayNestDAOFactory(
+            mockRegistry, mockDAOFactory, mockAdminPluginRepo, PluginRepo(address(0)), mockLlamaPayFactory
+        );
+    }
+
+    function test_RevertWhen_LlamaPayFactoryIsZero() external {
+        vm.expectRevert(PayNestDAOFactory.AdminAddressZero.selector);
+        new PayNestDAOFactory(mockRegistry, mockDAOFactory, mockAdminPluginRepo, mockPaymentsPluginRepo, address(0));
     }
 
     // Since we can't easily mock the complex DAOFactory behavior in unit tests,
@@ -84,7 +103,7 @@ contract PayNestDAOFactoryTest is TestBase {
 
         // Use non-zero addresses that won't trigger constructor validation
         PayNestDAOFactory testFactory = new PayNestDAOFactory(
-            testRegistry, DAOFactory(address(0x1)), PluginRepo(address(0x2)), PluginRepo(address(0x3))
+            testRegistry, DAOFactory(address(0x1)), PluginRepo(address(0x2)), PluginRepo(address(0x3)), address(0x4)
         );
 
         assertEq(address(testFactory.getAddressRegistry()), address(testRegistry));
@@ -95,7 +114,7 @@ contract PayNestDAOFactoryTest is TestBase {
         AddressRegistry testRegistry = new AddressRegistry();
 
         PayNestDAOFactory testFactory = new PayNestDAOFactory(
-            testRegistry, DAOFactory(address(0x1)), PluginRepo(address(0x2)), PluginRepo(address(0x3))
+            testRegistry, DAOFactory(address(0x1)), PluginRepo(address(0x2)), PluginRepo(address(0x3)), address(0x4)
         );
 
         // It should start with zero DAOs
@@ -111,7 +130,11 @@ contract PayNestDAOFactoryTest is TestBase {
     function test_GetDAOInfoForNonExistentDAO() external {
         // Create a factory for this test
         PayNestDAOFactory testFactory = new PayNestDAOFactory(
-            new AddressRegistry(), DAOFactory(address(0x1)), PluginRepo(address(0x2)), PluginRepo(address(0x3))
+            new AddressRegistry(),
+            DAOFactory(address(0x1)),
+            PluginRepo(address(0x2)),
+            PluginRepo(address(0x3)),
+            address(0x4)
         );
 
         PayNestDAOFactory.DAOInfo memory info = testFactory.getDAOInfo(address(0x999));

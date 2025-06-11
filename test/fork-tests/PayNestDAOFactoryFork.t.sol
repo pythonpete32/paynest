@@ -24,6 +24,7 @@ contract PayNestDAOFactoryForkTest is ForkTestBase {
 
     string constant TEST_DAO_NAME = "test-dao";
     address constant TEST_ADMIN = address(0x123);
+    address constant LLAMAPAY_FACTORY_BASE = 0x09c39B8311e4B7c678cBDAD76556877ecD3aEa07;
 
     // Events to test
     event PayNestDAOCreated(
@@ -47,19 +48,12 @@ contract PayNestDAOFactoryForkTest is ForkTestBase {
             _buildMetadata: NON_EMPTY_BYTES
         });
 
-        // Create a temporary admin plugin repo for testing
-        // In production, this would be the official Aragon admin plugin repo
-        string memory adminPluginRepoSubdomain = string.concat("admin-plugin-", vm.toString(block.timestamp));
-        adminPluginRepo = pluginRepoFactory.createPluginRepoWithFirstVersion({
-            _subdomain: adminPluginRepoSubdomain,
-            _pluginSetup: address(paymentsPluginSetup), // Using payments setup as placeholder
-            _maintainer: address(this),
-            _releaseMetadata: NON_EMPTY_BYTES,
-            _buildMetadata: NON_EMPTY_BYTES
-        });
+        // Use the actual deployed admin plugin repo on Base mainnet
+        adminPluginRepo = PluginRepo(0x212eF339C77B3390599caB4D46222D79fAabcb5c);
 
         // Deploy PayNest DAO Factory
-        factory = new PayNestDAOFactory(registry, daoFactory, adminPluginRepo, paymentsPluginRepo);
+        factory =
+            new PayNestDAOFactory(registry, daoFactory, adminPluginRepo, paymentsPluginRepo, LLAMAPAY_FACTORY_BASE);
 
         // Labels
         vm.label(address(factory), "PayNestDAOFactory");
@@ -255,18 +249,26 @@ contract PayNestDAOFactoryForkTest is ForkTestBase {
     function test_factoryConstructionValidation() external givenTestingFactoryConstruction {
         // It should revert with AdminAddressZero for zero registry
         vm.expectRevert(PayNestDAOFactory.AdminAddressZero.selector);
-        new PayNestDAOFactory(AddressRegistry(address(0)), daoFactory, adminPluginRepo, paymentsPluginRepo);
+        new PayNestDAOFactory(
+            AddressRegistry(address(0)), daoFactory, adminPluginRepo, paymentsPluginRepo, LLAMAPAY_FACTORY_BASE
+        );
 
         // It should revert with AdminAddressZero for zero dao factory
         vm.expectRevert(PayNestDAOFactory.AdminAddressZero.selector);
-        new PayNestDAOFactory(registry, DAOFactory(address(0)), adminPluginRepo, paymentsPluginRepo);
+        new PayNestDAOFactory(
+            registry, DAOFactory(address(0)), adminPluginRepo, paymentsPluginRepo, LLAMAPAY_FACTORY_BASE
+        );
 
         // It should revert with AdminAddressZero for zero admin plugin repo
         vm.expectRevert(PayNestDAOFactory.AdminAddressZero.selector);
-        new PayNestDAOFactory(registry, daoFactory, PluginRepo(address(0)), paymentsPluginRepo);
+        new PayNestDAOFactory(registry, daoFactory, PluginRepo(address(0)), paymentsPluginRepo, LLAMAPAY_FACTORY_BASE);
 
         // It should revert with AdminAddressZero for zero payments plugin repo
         vm.expectRevert(PayNestDAOFactory.AdminAddressZero.selector);
-        new PayNestDAOFactory(registry, daoFactory, adminPluginRepo, PluginRepo(address(0)));
+        new PayNestDAOFactory(registry, daoFactory, adminPluginRepo, PluginRepo(address(0)), LLAMAPAY_FACTORY_BASE);
+
+        // It should revert with AdminAddressZero for zero LlamaPay factory
+        vm.expectRevert(PayNestDAOFactory.AdminAddressZero.selector);
+        new PayNestDAOFactory(registry, daoFactory, adminPluginRepo, paymentsPluginRepo, address(0));
     }
 }

@@ -6,8 +6,8 @@ import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 import {DAOFactory} from "@aragon/osx/framework/dao/DAOFactory.sol";
 import {PluginRepo} from "@aragon/osx/framework/plugin/repo/PluginRepo.sol";
 import {PluginSetupRef} from "@aragon/osx/framework/plugin/setup/PluginSetupProcessorHelpers.sol";
+import {IPlugin} from "@aragon/osx-commons-contracts/src/plugin/IPlugin.sol";
 import {AddressRegistry} from "../AddressRegistry.sol";
-import {PaymentsPluginSetup} from "../setup/PaymentsPluginSetup.sol";
 
 /// @title PayNest DAO Factory
 /// @notice Creates fully configured Aragon DAOs with both Admin plugin and PayNest plugin installed in a single transaction
@@ -24,6 +24,9 @@ contract PayNestDAOFactory {
 
     /// @notice Plugin repository for PayNest plugin
     PluginRepo public immutable paymentsPluginRepo;
+
+    /// @notice LlamaPay factory address for streaming payments
+    address public immutable llamaPayFactory;
 
     /// @notice DAO deployment information
     mapping(address dao => DAOInfo) public daoInfo;
@@ -70,21 +73,25 @@ contract PayNestDAOFactory {
     /// @param _daoFactory Aragon's DAOFactory contract
     /// @param _adminPluginRepo Aragon's Admin plugin repository
     /// @param _paymentsPluginRepo PayNest plugin repository
+    /// @param _llamaPayFactory LlamaPay factory address for streaming payments
     constructor(
         AddressRegistry _addressRegistry,
         DAOFactory _daoFactory,
         PluginRepo _adminPluginRepo,
-        PluginRepo _paymentsPluginRepo
+        PluginRepo _paymentsPluginRepo,
+        address _llamaPayFactory
     ) {
         if (address(_addressRegistry) == address(0)) revert AdminAddressZero();
         if (address(_daoFactory) == address(0)) revert AdminAddressZero();
         if (address(_adminPluginRepo) == address(0)) revert AdminAddressZero();
         if (address(_paymentsPluginRepo) == address(0)) revert AdminAddressZero();
+        if (_llamaPayFactory == address(0)) revert AdminAddressZero();
 
         addressRegistry = _addressRegistry;
         daoFactory = _daoFactory;
         adminPluginRepo = _adminPluginRepo;
         paymentsPluginRepo = _paymentsPluginRepo;
+        llamaPayFactory = _llamaPayFactory;
     }
 
     /// @notice Creates a fully configured PayNest DAO with both Admin and PayNest plugins
@@ -112,27 +119,32 @@ contract PayNestDAOFactory {
         // Prepare plugin installations
         DAOFactory.PluginSettings[] memory pluginSettings = new DAOFactory.PluginSettings[](2);
 
-        // TODO: Accept LlamaPay factory as constructor parameter or use a default
-        address llamaPayFactory = 0x09c39B8311e4B7c678cBDAD76556877ecD3aEa07; // Base mainnet LlamaPay factory
-        bytes memory pluginData = abi.encode(admin, address(addressRegistry), llamaPayFactory);
+        // Admin Plugin Setup - admin gets single-owner control with DAO as execution target
+        bytes memory adminPluginData = abi.encode(
+            admin,
+            IPlugin.TargetConfig({
+                target: address(0), // Will be set to DAO address by setup contract
+                operation: IPlugin.Operation.Call
+            })
+        );
 
-        // Admin Plugin Setup - using same encoding as payments plugin for testing
-        // In production, this would use the proper admin plugin encoding
         pluginSettings[0] = DAOFactory.PluginSettings({
             pluginSetupRef: PluginSetupRef({
                 versionTag: adminPluginRepo.getLatestVersion(adminPluginRepo.latestRelease()).tag,
                 pluginSetupRepo: adminPluginRepo
             }),
-            data: pluginData
+            data: adminPluginData
         });
 
-        // PayNest Plugin Setup - latest version, uses shared registry
+        // PayNest Plugin Setup - uses shared registry and LlamaPay factory
+        bytes memory paymentsPluginData = abi.encode(admin, address(addressRegistry), llamaPayFactory);
+
         pluginSettings[1] = DAOFactory.PluginSettings({
             pluginSetupRef: PluginSetupRef({
                 versionTag: paymentsPluginRepo.getLatestVersion(paymentsPluginRepo.latestRelease()).tag,
                 pluginSetupRepo: paymentsPluginRepo
             }),
-            data: pluginData
+            data: paymentsPluginData
         });
 
         // Create DAO with both plugins

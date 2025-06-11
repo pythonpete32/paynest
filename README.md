@@ -313,13 +313,37 @@ console.log("DaoFactory", deployment.daoFactory);
 
 You can even [customize your local OSx test environment](https://github.com/aragon/protocol-factory?tab=readme-ov-file#if-you-need-to-override-some-parameters) if needed.
 
+## Deployed Contracts 📍
+
+### Base Mainnet (Chain ID: 8453) ✅
+
+**Core Infrastructure:**
+- **AddressRegistry**: [`0x0a7DCbbc427a8f7c2078c618301B447cCF1B3Bc0`](https://basescan.org/address/0x0a7DCbbc427a8f7c2078c618301B447cCF1B3Bc0) ✅ **New Deployment**
+- **PayNestDAOFactory**: [`0x5af13f848D21F93d5BaFF7D2bA74f29Ec2aD725B`](https://basescan.org/address/0x5af13f848D21F93d5BaFF7D2bA74f29Ec2aD725B)
+
+**PaymentsPlugin:**
+- **Plugin Setup**: [`0xAdE7003521E804d8aA3FD32d6FB3088fa2129882`](https://basescan.org/address/0xAdE7003521E804d8aA3FD32d6FB3088fa2129882)
+- **Plugin Repository**: [`0xbe203F5f0C3aF11A961c2c426AE7649a1a011028`](https://basescan.org/address/0xbe203F5f0C3aF11A961c2c426AE7649a1a011028)
+- **Plugin ENS**: `paynet-payments.plugin.dao.eth`
+- **Plugin Maintainer**: [`0x47d80912400ef8f8224531EBEB1ce8f2ACf4b75a`](https://basescan.org/address/0x47d80912400ef8f8224531EBEB1ce8f2ACf4b75a)
+
+**Integration Points:**
+- **LlamaPay Factory**: [`0x09c39B8311e4B7c678cBDAD76556877ecD3aEa07`](https://basescan.org/address/0x09c39B8311e4B7c678cBDAD76556877ecD3aEa07)
+- **Aragon DAO Factory**: [`0xcc602EA573a42eBeC290f33F49D4A87177ebB8d2`](https://basescan.org/address/0xcc602EA573a42eBeC290f33F49D4A87177ebB8d2)
+- **Aragon Plugin Repo Factory**: [`0xAAAb8c6b83a5C7b1462af4427d97b33197388C38`](https://basescan.org/address/0xAAAb8c6b83a5C7b1462af4427d97b33197388C38)
+
+**Deployment Details:**
+- **Block Number**: 31413509
+- **Timestamp**: 1749616365
+- **Deployer**: [`0x47d80912400ef8f8224531EBEB1ce8f2ACf4b75a`](https://basescan.org/address/0x47d80912400ef8f8224531EBEB1ce8f2ACf4b75a)
+
 ## Installation for DAOs
 
 PayNest can be installed on any Aragon DAO through the standard plugin installation process:
 
 ### Prerequisites
-- Registry address: `0x...` (deployed globally per network)
-- LlamaPay factory: `0xde1C04855c2828431ba637675B6929A684f84C7` (all networks)
+- Registry address: `0x0a7DCbbc427a8f7c2078c618301B447cCF1B3Bc0` (Base mainnet)
+- LlamaPay factory: `0x09c39B8311e4B7c678cBDAD76556877ecD3aEa07` (Base mainnet)
 - Manager address: Who can create/manage payments in your DAO
 
 ### Installation Steps

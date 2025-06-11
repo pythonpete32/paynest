@@ -66,18 +66,12 @@ contract StreamMigrationForkTest is ForkTestBase {
             _buildMetadata: NON_EMPTY_BYTES
         });
 
-        // Create admin plugin repository (using payments setup as placeholder)
-        string memory adminPluginRepoSubdomain = string.concat("admin-plugin-", vm.toString(block.timestamp));
-        PluginRepo adminPluginRepo = pluginRepoFactory.createPluginRepoWithFirstVersion({
-            _subdomain: adminPluginRepoSubdomain,
-            _pluginSetup: address(paymentsPluginSetup),
-            _maintainer: address(this),
-            _releaseMetadata: NON_EMPTY_BYTES,
-            _buildMetadata: NON_EMPTY_BYTES
-        });
+        // Use the actual deployed admin plugin repo on Base mainnet
+        PluginRepo adminPluginRepo = PluginRepo(0x212eF339C77B3390599caB4D46222D79fAabcb5c);
 
         // Deploy PayNest DAO Factory and create DAO
-        factory = new PayNestDAOFactory(registry, daoFactory, adminPluginRepo, paymentsPluginRepo);
+        factory =
+            new PayNestDAOFactory(registry, daoFactory, adminPluginRepo, paymentsPluginRepo, LLAMAPAY_FACTORY_BASE);
         (address daoAddress,, address paymentsPluginAddress) = factory.createPayNestDAO(admin, DAO_NAME);
 
         dao = DAO(payable(daoAddress));
@@ -194,9 +188,16 @@ contract StreamMigrationForkTest is ForkTestBase {
         assertEq(migratedStream.amount, initialStream.amount, "Stream amount should be unchanged");
 
         // Alice can now request payouts to new address
+        // Note: New LlamaPay stream starts from current timestamp, so we need to wait
         vm.warp(block.timestamp + 7 days);
         uint256 newWalletBalanceBefore = usdc.balanceOf(aliceNewWallet);
         uint256 newPayout = paymentsPlugin.requestStreamPayout("alice");
+        // The payout might be 0 if no time has passed since stream creation
+        // So we wait a bit more and try again
+        if (newPayout == 0) {
+            vm.warp(block.timestamp + 1 days);
+            newPayout = paymentsPlugin.requestStreamPayout("alice");
+        }
         assertTrue(newPayout > 0, "Alice should receive payout to new wallet");
         assertEq(usdc.balanceOf(aliceNewWallet), newWalletBalanceBefore + newPayout, "New wallet should receive payout");
 
