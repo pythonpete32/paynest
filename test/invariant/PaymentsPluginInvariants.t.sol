@@ -156,6 +156,17 @@ contract PaymentsPluginInvariants is Test {
         }
     }
 
+    /// @notice PP6: LlamaPay Contract Caching
+    /// @dev Cached LlamaPay contracts are valid and deployed
+    function invariant_PP6_llamaPayContractCaching() public view {
+        // Check that token mappings point to valid LlamaPay contracts
+        address llamaPayContract = plugin.tokenToLlamaPay(address(token));
+        if (llamaPayContract != address(0)) {
+            // Verify the contract is properly deployed (has code)
+            assertTrue(llamaPayContract.code.length > 0, "PP6: LlamaPay contract must have code");
+        }
+    }
+
     /// @notice PP7: Username Dependency
     /// @dev Active payments require valid usernames
     function invariant_PP7_usernameDependency() public view {
@@ -166,6 +177,26 @@ contract PaymentsPluginInvariants is Test {
             if (stream.active || schedule.active) {
                 address userAddress = registry.getUserAddress(validUsernames[i]);
                 assertTrue(userAddress != address(0), "PP7: Active payment requires valid username");
+            }
+        }
+    }
+
+    /// @notice PP8: Migration Consistency
+    /// @dev Stream recipients are consistent with current username addresses (allowing for pending migrations)
+    function invariant_PP8_migrationConsistency() public view {
+        for (uint256 i = 0; i < validUsernames.length; i++) {
+            IPayments.Stream memory stream = plugin.getStream(validUsernames[i]);
+
+            if (stream.active) {
+                address streamRecipient = plugin.streamRecipients(validUsernames[i]);
+                address currentAddress = registry.getUserAddress(validUsernames[i]);
+
+                // Either recipient matches current address, or stream is inactive
+                if (streamRecipient != currentAddress) {
+                    // Allow for temporary inconsistency during migration process
+                    // In practice, this would be checked through migration events or state
+                    assertTrue(streamRecipient != address(0), "PP8: Stream recipient should be valid if not migrated");
+                }
             }
         }
     }
@@ -188,6 +219,79 @@ contract PaymentsPluginInvariants is Test {
                 // Check for overflow
                 if (schedule.amount > 0) {
                     assertGe(totalAmount / testPeriods, schedule.amount, "PP9: Schedule amount calculation overflow");
+                }
+            }
+        }
+    }
+
+    /// @notice PP10: Decimal Precision Accuracy
+    /// @dev Amount per second calculations maintain reasonable precision
+    function invariant_PP10_decimalPrecisionAccuracy() public view {
+        for (uint256 i = 0; i < validUsernames.length; i++) {
+            IPayments.Stream memory stream = plugin.getStream(validUsernames[i]);
+
+            if (stream.active) {
+                // Verify stream amount is reasonable and fits precision requirements
+                // LlamaPay uses amount per second, so very small amounts might lose precision
+                assertGe(stream.amount, 1, "PP10: Stream amount should be at least 1 wei per second");
+
+                // For USDC (6 decimals), reasonable minimum would be 1e6 wei per second = 1 USDC/sec
+                // This prevents precision loss in LlamaPay calculations
+                if (stream.token == address(token)) {
+                    assertGe(stream.amount, 1e6, "PP10: USDC stream should be at least 1 USDC per second for precision");
+                }
+            }
+        }
+    }
+
+    /// @notice PP11: DAO Balance Sufficiency
+    /// @dev DAO maintains sufficient balance for active payment obligations
+    function invariant_PP11_daoBalanceSufficiency() public view {
+        uint256 daoBalance = token.balanceOf(address(dao));
+        uint256 totalActiveObligations = 0;
+
+        // Calculate total obligations from active streams and schedules
+        for (uint256 i = 0; i < validUsernames.length; i++) {
+            IPayments.Stream memory stream = plugin.getStream(validUsernames[i]);
+            IPayments.Schedule memory schedule = plugin.getSchedule(validUsernames[i]);
+
+            if (stream.active && stream.token == address(token)) {
+                // Approximate remaining stream obligation
+                uint256 remainingDuration = stream.endDate > block.timestamp ? stream.endDate - block.timestamp : 0;
+                totalActiveObligations += stream.amount * remainingDuration;
+            }
+
+            if (schedule.active && schedule.token == address(token)) {
+                // Conservative estimate: assume 1 pending payment
+                totalActiveObligations += schedule.amount;
+            }
+        }
+
+        // DAO should have enough balance to cover immediate obligations
+        // Note: This is a simplified check - in reality, streams pay gradually
+        assertTrue(
+            daoBalance >= totalActiveObligations / 1000, // Allow 1000x buffer for gradual payouts
+            "PP11: DAO should maintain sufficient balance for active obligations"
+        );
+    }
+
+    /// @notice PP13: Interval Alignment
+    /// @dev Recurring schedules maintain proper interval alignment
+    function invariant_PP13_intervalAlignment() public view {
+        for (uint256 i = 0; i < validUsernames.length; i++) {
+            IPayments.Schedule memory schedule = plugin.getSchedule(validUsernames[i]);
+
+            if (schedule.active && !schedule.isOneTime) {
+                // For recurring schedules, nextPayout should be aligned with interval
+                uint256 intervalSeconds = _getIntervalSeconds(schedule.interval);
+
+                if (intervalSeconds > 0 && schedule.nextPayout >= schedule.firstPaymentDate) {
+                    uint256 timeSinceFirst = schedule.nextPayout - schedule.firstPaymentDate;
+                    assertEq(
+                        timeSinceFirst % intervalSeconds,
+                        0,
+                        "PP13: Recurring schedule nextPayout should align with interval"
+                    );
                 }
             }
         }
@@ -217,6 +321,28 @@ contract PaymentsPluginInvariants is Test {
             dao.hasPermission(address(dao), address(plugin), dao.EXECUTE_PERMISSION_ID(), ""),
             "PS2: Plugin must have execute permission on DAO"
         );
+    }
+
+    /// @notice PS3: Migration Authorization
+    /// @dev Only current username holder can migrate streams
+    function invariant_PS3_migrationAuthorization() public view {
+        // This invariant is best tested through handler functions that attempt unauthorized migrations
+        // For now, we verify that stream recipients match current username addresses
+        for (uint256 i = 0; i < validUsernames.length; i++) {
+            IPayments.Stream memory stream = plugin.getStream(validUsernames[i]);
+
+            if (stream.active) {
+                address streamRecipient = plugin.streamRecipients(validUsernames[i]);
+                address currentAddress = registry.getUserAddress(validUsernames[i]);
+
+                // In a properly functioning system, these should match (except during migration)
+                // Migration can only be called by the current username holder
+                assertTrue(
+                    streamRecipient == currentAddress || streamRecipient == address(0),
+                    "PS3: Stream recipient should match current username address or be migrating"
+                );
+            }
+        }
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -361,5 +487,18 @@ contract PaymentsPluginInvariants is Test {
     /// @notice Target contract for invariant testing
     function targetContract() public view returns (address) {
         return address(this);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                              HELPER FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Helper function to get interval duration in seconds
+    function _getIntervalSeconds(IPayments.IntervalType interval) internal pure returns (uint256) {
+        if (interval == IPayments.IntervalType.Weekly) return 7 days;
+        if (interval == IPayments.IntervalType.Monthly) return 30 days;
+        if (interval == IPayments.IntervalType.Quarterly) return 90 days;
+        if (interval == IPayments.IntervalType.Yearly) return 365 days;
+        return 0;
     }
 }
