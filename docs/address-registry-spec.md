@@ -20,10 +20,17 @@ AddressRegistry.sol
 
 ```solidity
 contract AddressRegistry is IRegistry {
-    /// @notice Maps usernames to their owner addresses
-    mapping(string => address) public usernameToAddress;
+    /// @notice Structure to track address history for migration support
+    struct AddressHistory {
+        address currentAddress;     // Current username owner
+        address previousAddress;    // Previous address (for migration)
+        uint256 lastChangeTime;     // Timestamp of last address change
+    }
     
-    /// @notice Maps addresses to their claimed usernames
+    /// @notice Maps usernames to their address history
+    mapping(string => AddressHistory) private userAddresses;
+    
+    /// @notice Maps addresses to their claimed usernames (for reverse lookup)
     mapping(address => string) public addressToUsername;
 }
 ```
@@ -41,7 +48,8 @@ function claimUsername(string calldata username) external;
 - Validate username format (alphanumeric + underscore, 1-32 chars)
 - Check username is not already claimed
 - Check caller doesn't already have a username
-- Store bidirectional mapping (username → address, address → username)
+- Initialize AddressHistory with current address and zero previous address
+- Store bidirectional mapping (username → address history, address → username)
 - Emit UsernameClaimed event
 
 #### Address Updates (IRegistry Interface)
@@ -52,9 +60,10 @@ function updateUserAddress(string calldata username, address userAddress) extern
 
 **Function Logic**:
 
-- Verify caller owns the username
+- Verify caller owns the username (check current address in history)
 - Validate new address is not zero and doesn't have a username
-- Update username to point to new address
+- Store current address as previous address in history
+- Update address history with new current address and timestamp
 - Clear old address mapping and update new address mapping
 - Emit UserAddressUpdated event
 
@@ -66,9 +75,19 @@ function getUserAddress(string calldata username) external view returns (address
 
 **Function Logic**:
 
-- Simple mapping lookup from usernameToAddress
+- Simple lookup of currentAddress from userAddresses mapping
 - Returns zero address if username doesn't exist
 - No validation needed for view function
+
+```solidity
+function getAddressHistory(string calldata username) external view returns (AddressHistory memory);
+```
+
+**Function Logic**:
+
+- Return complete AddressHistory struct for username
+- Includes current address, previous address, and last change time
+- Used by PaymentsPlugin for stream migration functionality
 
 ### View Functions
 

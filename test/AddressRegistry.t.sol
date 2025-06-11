@@ -52,7 +52,7 @@ contract AddressRegistryTest is TestBase {
         vm.prank(alice);
         registry.claimUsername(username);
 
-        assertEq(registry.usernameToAddress(username), alice);
+        assertEq(registry.getUserAddress(username), alice);
         assertEq(registry.addressToUsername(alice), username);
     }
 
@@ -319,7 +319,7 @@ contract AddressRegistryTest is TestBase {
         registry.claimUsername(username);
 
         // Check bidirectional consistency
-        assertEq(registry.usernameToAddress(username), alice);
+        assertEq(registry.getUserAddress(username), alice);
         assertEq(registry.addressToUsername(alice), username);
         assertEq(registry.getUserAddress(username), alice);
         assertEq(registry.getUsernameByAddress(alice), username);
@@ -335,7 +335,7 @@ contract AddressRegistryTest is TestBase {
         registry.updateUserAddress(username, bob);
 
         // Check bidirectional consistency after update
-        assertEq(registry.usernameToAddress(username), bob);
+        assertEq(registry.getUserAddress(username), bob);
         assertEq(registry.addressToUsername(bob), username);
         assertEq(registry.getUserAddress(username), bob);
         assertEq(registry.getUsernameByAddress(bob), username);
@@ -495,14 +495,14 @@ contract AddressRegistryTest is TestBase {
         registry.claimUsername("alice");
 
         // Check initial sync
-        assertEq(registry.usernameToAddress("alice"), alice);
+        assertEq(registry.getUserAddress("alice"), alice);
         assertEq(registry.addressToUsername(alice), "alice");
 
         // Update and check sync maintained
         vm.prank(alice);
         registry.updateUserAddress("alice", bob);
 
-        assertEq(registry.usernameToAddress("alice"), bob);
+        assertEq(registry.getUserAddress("alice"), bob);
         assertEq(registry.addressToUsername(bob), "alice");
         assertEq(registry.addressToUsername(alice), "");
     }
@@ -533,7 +533,7 @@ contract AddressRegistryTest is TestBase {
         registry.updateUserAddress("alice", bob);
 
         // No orphaned mappings - if username maps to address, address maps back to username
-        address usernameOwner = registry.usernameToAddress("alice");
+        address usernameOwner = registry.getUserAddress("alice");
         string memory ownerUsername = registry.addressToUsername(usernameOwner);
         assertEq(ownerUsername, "alice");
 
@@ -566,12 +566,124 @@ contract AddressRegistryTest is TestBase {
         registry.claimUsername("alice");
 
         // Username should never map to zero address after claiming
-        assertTrue(registry.usernameToAddress("alice") != address(0));
+        assertTrue(registry.getUserAddress("alice") != address(0));
 
         vm.prank(alice);
         registry.updateUserAddress("alice", bob);
 
         // After update, should still not map to zero address
-        assertTrue(registry.usernameToAddress("alice") != address(0));
+        assertTrue(registry.getUserAddress("alice") != address(0));
+    }
+
+    // =========================================================================
+    // Address History Tests
+    // =========================================================================
+
+    function test_claimUsername_NewUsername_ShouldInitializeAddressHistory() public {
+        string memory username = "alice";
+
+        vm.prank(alice);
+        registry.claimUsername(username);
+
+        IRegistry.AddressHistory memory history = registry.getAddressHistory(username);
+        assertEq(history.currentAddress, alice);
+        assertEq(history.previousAddress, address(0));
+        assertTrue(history.lastChangeTime > 0);
+    }
+
+    function test_updateUserAddress_ValidUpdate_ShouldTrackAddressHistory() public {
+        string memory username = "alice";
+
+        // Alice claims username
+        vm.prank(alice);
+        registry.claimUsername(username);
+
+        // Fast forward time
+        vm.warp(block.timestamp + 1 days);
+
+        // Alice updates to bob's address
+        vm.prank(alice);
+        registry.updateUserAddress(username, bob);
+
+        // Check address history
+        IRegistry.AddressHistory memory history = registry.getAddressHistory(username);
+        assertEq(history.currentAddress, bob);
+        assertEq(history.previousAddress, alice);
+        assertEq(history.lastChangeTime, block.timestamp);
+    }
+
+    function test_updateUserAddress_MultipleUpdates_ShouldTrackLatestChange() public {
+        string memory username = "alice";
+
+        // Alice claims username
+        vm.prank(alice);
+        registry.claimUsername(username);
+
+        // First update: alice -> bob
+        vm.warp(block.timestamp + 1 days);
+        vm.prank(alice);
+        registry.updateUserAddress(username, bob);
+
+        // Second update: bob -> carol
+        vm.warp(block.timestamp + 1 days);
+        vm.prank(bob);
+        registry.updateUserAddress(username, carol);
+
+        // History should track bob -> carol (most recent change)
+        IRegistry.AddressHistory memory history = registry.getAddressHistory(username);
+        assertEq(history.currentAddress, carol);
+        assertEq(history.previousAddress, bob); // Not alice
+        assertEq(history.lastChangeTime, block.timestamp);
+    }
+
+    function test_updateUserAddress_UnauthorizedCaller_ShouldRevertWithUnauthorizedAddressUpdate() public {
+        string memory username = "alice";
+
+        // Alice claims username
+        vm.prank(alice);
+        registry.claimUsername(username);
+
+        // Bob tries to update Alice's username
+        vm.expectRevert(AddressRegistry.NotUsernameOwner.selector);
+        vm.prank(bob);
+        registry.updateUserAddress(username, bob);
+    }
+
+    function test_getAddressHistory_NonExistentUsername_ShouldReturnZeroValues() public {
+        IRegistry.AddressHistory memory history = registry.getAddressHistory("nonexistent");
+        
+        assertEq(history.currentAddress, address(0));
+        assertEq(history.previousAddress, address(0));
+        assertEq(history.lastChangeTime, 0);
+    }
+
+    function test_getUserAddress_AfterUpdate_ShouldReturnCurrentAddress() public {
+        string memory username = "alice";
+
+        // Alice claims username
+        vm.prank(alice);
+        registry.claimUsername(username);
+
+        // Alice updates to bob's address
+        vm.prank(alice);
+        registry.updateUserAddress(username, bob);
+
+        // getUserAddress should return current address
+        assertEq(registry.getUserAddress(username), bob);
+    }
+
+    function test_isUsernameAvailable_UpdatedUsername_ShouldReturnFalse() public {
+        string memory username = "alice";
+
+        // Alice claims username
+        vm.prank(alice);
+        registry.claimUsername(username);
+
+        // Alice updates to bob's address
+        vm.prank(alice);
+        registry.updateUserAddress(username, bob);
+
+        // Username should still be unavailable
+        assertFalse(registry.isUsernameAvailable(username));
     }
 }

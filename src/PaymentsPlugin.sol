@@ -23,6 +23,9 @@ contract PaymentsPlugin is PluginUUPSUpgradeable, IPayments {
     /// @notice Mapping from username to stream data
     mapping(string => Stream) public streams;
 
+    /// @notice Mapping from username to stream recipient addresses
+    mapping(string => address) public streamRecipients;
+
     /// @notice Mapping from username to schedule data
     mapping(string => Schedule) public schedules;
 
@@ -51,6 +54,9 @@ contract PaymentsPlugin is PluginUUPSUpgradeable, IPayments {
     error InvalidEndDate();
     error InvalidFirstPaymentDate();
     error AmountPerSecondOverflow();
+    error UnauthorizedMigration();
+    error StreamNotFound();
+    error NoMigrationNeeded();
 
     /// @notice Initialize the plugin
     /// @param _dao The DAO this plugin belongs to
@@ -105,6 +111,7 @@ contract PaymentsPlugin is PluginUUPSUpgradeable, IPayments {
             amount: amountPerSec,
             lastPayout: uint40(block.timestamp)
         });
+        streamRecipients[username] = recipient;
 
         emit StreamActive(username, token, endStream, amount);
     }
@@ -115,8 +122,8 @@ contract PaymentsPlugin is PluginUUPSUpgradeable, IPayments {
         Stream storage stream = streams[username];
         if (!stream.active) revert StreamNotActive();
 
-        // Resolve current username address
-        address recipient = _resolveUsername(username);
+        // Get stored recipient address (for streams that may have different recipient than current username)
+        address recipient = streamRecipients[username];
 
         // Get LlamaPay contract
         address llamaPayContract = tokenToLlamaPay[stream.token];
@@ -129,6 +136,7 @@ contract PaymentsPlugin is PluginUUPSUpgradeable, IPayments {
 
         // Clear stream metadata
         stream.active = false;
+        delete streamRecipients[username];
 
         emit PaymentStreamCancelled(username, stream.token);
     }
@@ -171,7 +179,7 @@ contract PaymentsPlugin is PluginUUPSUpgradeable, IPayments {
         // Resolve username first (will revert with UsernameNotFound if invalid)
         address recipient = _resolveUsername(username);
 
-        // Then check if stream is active
+        // Check if stream is active
         Stream storage stream = streams[username];
         if (!stream.active) revert StreamNotActive();
 
@@ -305,6 +313,28 @@ contract PaymentsPlugin is PluginUUPSUpgradeable, IPayments {
     /// @return schedule The schedule data
     function getSchedule(string calldata username) external view returns (Schedule memory schedule) {
         return schedules[username];
+    }
+
+    /// @notice Migrate user's stream to their current address
+    /// @param username The username to migrate stream for
+    function migrateStream(string calldata username) external {
+        // Only current address holder can migrate
+        address currentAddress = registry.getUserAddress(username);
+        if (msg.sender != currentAddress) revert UnauthorizedMigration();
+
+        Stream storage stream = streams[username];
+        if (!stream.active) revert StreamNotFound();
+
+        // Get the current stream recipient (where the stream is actually pointing)
+        address oldStreamRecipient = streamRecipients[username];
+
+        // Check if migration is needed (stream tied to old address)
+        if (oldStreamRecipient == currentAddress) revert NoMigrationNeeded();
+
+        // Migrate stream from current stream recipient to new current address
+        _migrateStreamToNewAddress(username, oldStreamRecipient, currentAddress);
+
+        emit StreamMigrated(username, oldStreamRecipient, currentAddress);
     }
 
     /// @notice Resolve username to address via registry
@@ -472,4 +502,34 @@ contract PaymentsPlugin is PluginUUPSUpgradeable, IPayments {
         if (interval == IntervalType.Yearly) return 365 days;
         revert InvalidAmount(); // Should never reach here
     }
+
+    /// @notice Internal function to migrate stream to new address
+    /// @param username The username being migrated
+    /// @param oldAddress The previous address
+    /// @param newAddress The new address
+    function _migrateStreamToNewAddress(
+        string calldata username,
+        address oldAddress,
+        address newAddress
+    ) internal {
+        Stream storage stream = streams[username];
+
+        // Get LlamaPay contract for the token
+        address llamaPayContract = tokenToLlamaPay[stream.token];
+
+        // Cancel old LlamaPay stream (returns funds to DAO)
+        _cancelLlamaPayStream(llamaPayContract, oldAddress, stream.amount);
+
+        // Create new LlamaPay stream for new address with same parameters
+        _createLlamaPayStream(llamaPayContract, newAddress, stream.amount, username);
+
+        // Update stream recipient record
+        streamRecipients[username] = newAddress;
+    }
+
+    /// @notice Emitted when a stream is migrated to a new address
+    /// @param username The username whose stream was migrated
+    /// @param oldAddress The previous address
+    /// @param newAddress The new address
+    event StreamMigrated(string indexed username, address indexed oldAddress, address indexed newAddress);
 }

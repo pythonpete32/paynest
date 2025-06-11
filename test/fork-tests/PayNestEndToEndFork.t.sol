@@ -494,19 +494,9 @@ contract PayNestEndToEndForkTest is ForkTestBase {
     }
 
     /// @notice INTENDED BEHAVIOR: When a user updates their address in the registry (e.g., due to wallet compromise),
-    /// existing LlamaPay streams remain tied to the original address and become inaccessible. The admin must
-    /// manually recreate streams for the new address. This is the expected security behavior.
-    ///
-    /// ⚠️  TEMPORARILY DISABLED: This test reveals a critical design limitation where PayNest tracks streams
-    /// by username but LlamaPay tracks by address. When addresses change, the system enters an inconsistent
-    /// state with orphaned stream records that cannot be properly managed. See:
-    /// - docs/address-change-problem.md for detailed problem analysis
-    /// - docs/address-change-solution-plan.md for implementation plan
-    /// 
-    /// This test will be re-enabled once the coordinated address change solution is implemented.
+    /// existing LlamaPay streams become temporarily inaccessible until the user migrates their stream to the new address.
+    /// This provides security (old compromised wallet can't access new streams) while allowing user-driven recovery.
     function test_UsernameAddressUpdateDuringPayments() external {
-        // DISABLED - see comment above
-        return;
         // ===================================================================
         // ARRANGE: Set up DAO, funding, username claim, and active stream
         // ===================================================================
@@ -566,40 +556,79 @@ contract PayNestEndToEndForkTest is ForkTestBase {
         paymentsPlugin.requestStreamPayout("alicemobile");
         
         // ===================================================================
-        // ACT: Admin handles stream transition (manual intervention required)
+        // ACT: Alice migrates her stream to new address (USER-DRIVEN RECOVERY)
         // ===================================================================
         
-        // First, admin must cancel the existing PayNest stream record
-        // (even though underlying LlamaPay stream is inaccessible)
-        vm.prank(companyAdmin);
-        vm.expectRevert("stream doesn't exist"); // LlamaPay cancellation will fail
-        paymentsPlugin.cancelStream("alicemobile");
+        console.log("\\n--- Alice migrates her stream to new address ---");
         
-        // Since cancellation fails, admin must force-remove the stream record
-        // In production, this would require a special admin function or stream cleanup
-        // For this test, we'll demonstrate creating a stream with a different username
+        // Only Alice (from new wallet) can migrate her stream
+        vm.expectRevert(PaymentsPlugin.UnauthorizedMigration.selector);
+        vm.prank(aliceEmployee); // Old wallet can't migrate
+        paymentsPlugin.migrateStream("alicemobile");
         
-        // Admin creates new stream for updated address
-        vm.prank(companyAdmin);
-        paymentsPlugin.createStream("alicemobile", 1000e6, address(usdc), uint40(block.timestamp + 30 days));
+        // Record balances before migration
+        uint256 aliceEmployeeBalanceBeforeMigration = usdc.balanceOf(aliceEmployee);
+        
+        // Alice migrates stream from new wallet
+        vm.prank(aliceEmployeeNewAddress);
+        paymentsPlugin.migrateStream("alicemobile");
+        
+        console.log("+ Alice successfully migrated stream to new address");
         
         // ===================================================================
-        // ASSERT: Verify new stream works with updated address
+        // ASSERT: Verify stream works correctly after migration
         // ===================================================================
         
-        // Allow time to pass for new stream
+        // 4. VERIFY: Stream is now accessible from new address
         vm.warp(block.timestamp + 7 days);
         uint256 aliceEmployeeNewBalance = usdc.balanceOf(aliceEmployeeNewAddress);
         uint256 newPayout = paymentsPlugin.requestStreamPayout("alicemobile");
         
-        // 4. VERIFY: New stream pays to updated address
+        // 5. VERIFY: New address receives payouts
         assertEq(usdc.balanceOf(aliceEmployeeNewAddress), aliceEmployeeNewBalance + newPayout, 
-            "New stream should pay to updated address");
+            "New address should receive stream payouts after migration");
+        assertTrue(newPayout > 0, "Alice should receive payout after migration");
         
-        // 5. VERIFY: Old address receives no new payments
-        assertEq(usdc.balanceOf(aliceEmployee), aliceEmployeeOriginalBalance + originalPayout,
-            "Original address should not receive any new payments");
+        // 6. VERIFY: Old address receives final payout during migration (INTENDED BEHAVIOR)
+        uint256 aliceEmployeeFinalBalance = usdc.balanceOf(aliceEmployee);
+        console.log("Balance before migration:", aliceEmployeeBalanceBeforeMigration);
+        console.log("Balance after migration:", aliceEmployeeFinalBalance);
         
-        console.log("+ Username address update verified - demonstrates stream/address binding");
+        // The old address should receive any remaining streamed funds when the stream is cancelled during migration
+        // This is LlamaPay's intended behavior - no funds are lost during cancellation
+        assertTrue(aliceEmployeeFinalBalance > aliceEmployeeBalanceBeforeMigration,
+            "Original address should receive final payout during migration");
+            
+        // Calculate what the final payout to old address was
+        uint256 finalPayoutToOldAddress = aliceEmployeeFinalBalance - aliceEmployeeBalanceBeforeMigration;
+        console.log("Final payout to old address during migration:", finalPayoutToOldAddress);
+        assertTrue(finalPayoutToOldAddress > 0, "Old address should receive final accrued funds");
+        
+        // 7. VERIFY: Stream metadata is updated correctly
+        assertEq(paymentsPlugin.streamRecipients("alicemobile"), aliceEmployeeNewAddress,
+            "Stream recipient should be updated to new address");
+        
+        IPayments.Stream memory migratedStream = paymentsPlugin.getStream("alicemobile");
+        assertTrue(migratedStream.active, "Stream should remain active after migration");
+        assertEq(migratedStream.token, address(usdc), "Stream token should be unchanged");
+        assertEq(migratedStream.amount, originalStream.amount, "Stream amount should be unchanged");
+        
+        // 8. VERIFY: Future payouts go only to new address
+        vm.warp(block.timestamp + 7 days);
+        uint256 aliceEmployeeBalanceBeforeSecondPayout = usdc.balanceOf(aliceEmployee);
+        uint256 aliceEmployeeNewBalanceBeforeSecondPayout = usdc.balanceOf(aliceEmployeeNewAddress);
+        
+        uint256 secondPayout = paymentsPlugin.requestStreamPayout("alicemobile");
+        
+        // Old address balance should not change
+        assertEq(usdc.balanceOf(aliceEmployee), aliceEmployeeBalanceBeforeSecondPayout,
+            "Old address should not receive future payouts after migration");
+            
+        // New address should receive the payout
+        assertEq(usdc.balanceOf(aliceEmployeeNewAddress), aliceEmployeeNewBalanceBeforeSecondPayout + secondPayout,
+            "New address should receive future payouts after migration");
+        assertTrue(secondPayout > 0, "Second payout should be greater than zero");
+        
+        console.log("+ Username address update and migration verified - user-controlled recovery working");
     }
 }
