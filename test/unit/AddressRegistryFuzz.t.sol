@@ -2,9 +2,9 @@
 pragma solidity ^0.8.28;
 
 import {Test} from "forge-std/Test.sol";
-import {AddressRegistry} from "../src/AddressRegistry.sol";
-import {IRegistry} from "../src/interfaces/IRegistry.sol";
-import {TestBase} from "./lib/TestBase.sol";
+import {AddressRegistry} from "../../src/AddressRegistry.sol";
+import {IRegistry} from "../../src/interfaces/IRegistry.sol";
+import {TestBase} from "../lib/TestBase.sol";
 
 contract AddressRegistryFuzzTest is TestBase {
     AddressRegistry public registry;

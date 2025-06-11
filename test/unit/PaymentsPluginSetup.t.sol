@@ -2,8 +2,8 @@
 pragma solidity ^0.8.28;
 
 import {Test} from "forge-std/Test.sol";
-import {PaymentsPluginSetup} from "../src/setup/PaymentsPluginSetup.sol";
-import {PaymentsPlugin} from "../src/PaymentsPlugin.sol";
+import {PaymentsPluginSetup} from "../../src/setup/PaymentsPluginSetup.sol";
+import {PaymentsPlugin} from "../../src/PaymentsPlugin.sol";
 import {IPluginSetup, PermissionLib} from "@aragon/osx/framework/plugin/setup/PluginSetupProcessor.sol";
 
 contract MockDAO {

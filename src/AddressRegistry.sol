@@ -7,7 +7,6 @@ import {IRegistry} from "./interfaces/IRegistry.sol";
 /// @notice A simple, global contract that manages username-to-address mappings for the PayNest ecosystem
 /// @dev Implements the IRegistry interface and provides basic username claiming and address resolution functionality
 contract AddressRegistry is IRegistry {
-
     /// @notice Maps usernames to their address history
     mapping(string => AddressHistory) public userAddresses;
 
@@ -41,11 +40,8 @@ contract AddressRegistry is IRegistry {
         }
 
         // Store address history and bidirectional mapping
-        userAddresses[username] = AddressHistory({
-            currentAddress: msg.sender,
-            previousAddress: address(0),
-            lastChangeTime: block.timestamp
-        });
+        userAddresses[username] =
+            AddressHistory({currentAddress: msg.sender, previousAddress: address(0), lastChangeTime: block.timestamp});
         addressToUsername[msg.sender] = username;
 
         emit UsernameClaimed(username, msg.sender);

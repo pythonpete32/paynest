@@ -2,10 +2,10 @@
 pragma solidity ^0.8.28;
 
 import {Test} from "forge-std/Test.sol";
-import {PaymentsPlugin} from "../src/PaymentsPlugin.sol";
-import {IPayments} from "../src/interfaces/IPayments.sol";
-import {AddressRegistry} from "../src/AddressRegistry.sol";
-import {PaymentsBuilder, MockLlamaPayFactory, MockERC20} from "./builders/PaymentsBuilder.sol";
+import {PaymentsPlugin} from "../../src/PaymentsPlugin.sol";
+import {IPayments} from "../../src/interfaces/IPayments.sol";
+import {AddressRegistry} from "../../src/AddressRegistry.sol";
+import {PaymentsBuilder, MockLlamaPayFactory, MockERC20} from "../builders/PaymentsBuilder.sol";
 import {DAO, IDAO} from "@aragon/osx/core/dao/DAO.sol";
 import {DaoUnauthorized} from "@aragon/osx-commons-contracts/src/permission/auth/auth.sol";
 import {ProxyLib} from "@aragon/osx-commons-contracts/src/utils/deployment/ProxyLib.sol";
@@ -378,7 +378,7 @@ contract PaymentsPluginTest is Test {
         // Mock a stream that's already tied to current address
         // Note: In unit tests, we can't easily test the full migration flow without mocking
         // This would be better tested in fork tests with real LlamaPay integration
-        
+
         // For now, we'll test the error case where username doesn't exist
         vm.expectRevert(PaymentsPlugin.StreamNotFound.selector);
         vm.prank(david);

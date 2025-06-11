@@ -10,7 +10,7 @@ import {PluginRepo} from "@aragon/osx/framework/plugin/repo/PluginRepo.sol";
 import {PluginSetupRef} from "@aragon/osx/framework/plugin/setup/PluginSetupProcessorHelpers.sol";
 import {MyUpgradeablePlugin} from "../../src/MyUpgradeablePlugin.sol";
 import {MyPluginSetup} from "../../src/setup/MyPluginSetup.sol";
-import {NON_EMPTY_BYTES} from "../constants.sol";
+import {NON_EMPTY_BYTES} from "../lib/constants.sol";
 
 contract ForkBuilder is ForkTestBase {
     address immutable DAO_BASE = address(new DAO());

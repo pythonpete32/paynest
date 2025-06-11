@@ -13,7 +13,7 @@ import {AddressRegistry} from "../../src/AddressRegistry.sol";
 import {PaymentsPlugin} from "../../src/PaymentsPlugin.sol";
 import {PaymentsPluginSetup} from "../../src/setup/PaymentsPluginSetup.sol";
 import {ProxyLib} from "@aragon/osx-commons-contracts/src/utils/deployment/ProxyLib.sol";
-import {NON_EMPTY_BYTES} from "../constants.sol";
+import {NON_EMPTY_BYTES} from "../lib/constants.sol";
 
 contract PayNestDAOFactoryForkTest is ForkTestBase {
     PayNestDAOFactory internal factory;

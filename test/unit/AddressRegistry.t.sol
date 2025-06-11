@@ -2,9 +2,9 @@
 pragma solidity ^0.8.28;
 
 import {Test} from "forge-std/Test.sol";
-import {AddressRegistry} from "../src/AddressRegistry.sol";
-import {IRegistry} from "../src/interfaces/IRegistry.sol";
-import {TestBase} from "./lib/TestBase.sol";
+import {AddressRegistry} from "../../src/AddressRegistry.sol";
+import {IRegistry} from "../../src/interfaces/IRegistry.sol";
+import {TestBase} from "../lib/TestBase.sol";
 
 contract AddressRegistryTest is TestBase {
     AddressRegistry public registry;
@@ -651,7 +651,7 @@ contract AddressRegistryTest is TestBase {
 
     function test_getAddressHistory_NonExistentUsername_ShouldReturnZeroValues() public {
         IRegistry.AddressHistory memory history = registry.getAddressHistory("nonexistent");
-        
+
         assertEq(history.currentAddress, address(0));
         assertEq(history.previousAddress, address(0));
         assertEq(history.lastChangeTime, 0);

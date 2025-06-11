@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 pragma solidity 0.8.28;
 
-import {TestBase} from "./lib/TestBase.sol";
+import {TestBase} from "../lib/TestBase.sol";
 import {DAO} from "@aragon/osx/core/dao/DAO.sol";
 import {DAOFactory} from "@aragon/osx/framework/dao/DAOFactory.sol";
 import {PluginRepo} from "@aragon/osx/framework/plugin/repo/PluginRepo.sol";
 
-import {PayNestDAOFactory} from "../src/factory/PayNestDAOFactory.sol";
-import {AddressRegistry} from "../src/AddressRegistry.sol";
+import {PayNestDAOFactory} from "../../src/factory/PayNestDAOFactory.sol";
+import {AddressRegistry} from "../../src/AddressRegistry.sol";
 
 contract PayNestDAOFactoryTest is TestBase {
     PayNestDAOFactory internal factory;

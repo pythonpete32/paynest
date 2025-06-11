@@ -10,7 +10,7 @@ import {PluginRepo} from "@aragon/osx/framework/plugin/repo/PluginRepo.sol";
 
 import {MyPluginSetup} from "../../src/setup/MyPluginSetup.sol";
 import {MyUpgradeablePlugin} from "../../src/MyUpgradeablePlugin.sol";
-import {NON_EMPTY_BYTES} from "../constants.sol";
+import {NON_EMPTY_BYTES} from "../lib/constants.sol";
 
 contract MyPluginForkTest is ForkTestBase {
     DAO internal dao;
