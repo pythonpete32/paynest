@@ -152,6 +152,20 @@ plugin.requestStreamPayout("alice");
 plugin.cancelStream("alice");
 ```
 
+### Stream Migration 🔄
+
+Users can migrate their own streams after wallet changes:
+
+```solidity
+// Alice updates her address (wallet recovery)
+registry.updateUserAddress("alice", newWalletAddress);
+
+// Alice migrates her stream to new address (user-controlled)
+plugin.migrateStream("alice");
+
+// Stream continues seamlessly with new address
+```
+
 ### Scheduled Payments 📅
 
 Set up recurring payments for regular contributors:
@@ -188,20 +202,20 @@ address recipient = registry.getUserAddress("alice");
 
 ## Testing 🔍
 
-PayNest includes comprehensive testing with both unit tests (mocked) and fork tests (real contracts).
+PayNest includes comprehensive testing with unit tests (mocked), fork tests (real contracts), and invariant tests (property-based testing with 33M+ function calls).
 
 ### Test Commands
 
 ```bash
-# Unit tests (fast, with mocks) - 115 tests
+# Unit tests (fast, with mocks) - 130+ tests
 make test
 forge test --match-path "./test/*.sol"
 
-# Fork tests (real Base mainnet contracts) - 15 tests
+# Fork tests (real Base mainnet contracts) - 33 tests
 make test-fork
-forge test --match-contract "PaymentsPluginForkTest"
+forge test --match-contract "*Fork*"
 
-# All tests (unit + fork) - 130 tests
+# All tests (unit + fork + invariant) - 213 tests
 forge test
 
 # Coverage report
@@ -210,18 +224,24 @@ make test-coverage
 
 ### Test Architecture
 
-**Unit Tests (115 tests)**
+**Unit Tests (130+ tests)**
 - Mock LlamaPay contracts for fast, deterministic testing
 - Mock USDC tokens with controlled behavior
 - Real Aragon DAO contracts using SimpleBuilder
 - Purpose: Fast development, edge cases, gas optimization
 
-**Fork Tests (15 tests)**
+**Fork Tests (33 tests)**
 - **Zero mocking** - 100% real contracts on Base mainnet
 - Real USDC: `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913`
 - Real LlamaPay: `0x09c39B8311e4B7c678cBDAD76556877ecD3aEa07`
 - Real USDC whale: `0x0B0A5886664376F59C351ba3f598C8A8B4D0A6f3`
 - Purpose: Production-ready integration testing
+
+**Invariant Tests (39 tests)**
+- **33M+ function calls** across multiple test runs
+- Comprehensive property-based testing
+- State consistency validation across complex scenarios
+- Purpose: Mathematical proof of system correctness
 
 All tests use Bulloak for structured test scaffolding from YAML specifications.
 
@@ -318,8 +338,8 @@ You can even [customize your local OSx test environment](https://github.com/arag
 ### Base Mainnet (Chain ID: 8453) ✅
 
 **Core Infrastructure:**
-- **AddressRegistry**: [`0x0a7DCbbc427a8f7c2078c618301B447cCF1B3Bc0`](https://basescan.org/address/0x0a7DCbbc427a8f7c2078c618301B447cCF1B3Bc0) ✅ **New Deployment**
-- **PayNestDAOFactory**: [`0x5af13f848D21F93d5BaFF7D2bA74f29Ec2aD725B`](https://basescan.org/address/0x5af13f848D21F93d5BaFF7D2bA74f29Ec2aD725B)
+- **AddressRegistry**: [`0x0a7DCbbc427a8f7c2078c618301B447cCF1B3Bc0`](https://basescan.org/address/0x0a7DCbbc427a8f7c2078c618301B447cCF1B3Bc0) ✅ **Verified**
+- **PayNestDAOFactory**: [`0x5af13f848D21F93d5BaFF7D2bA74f29Ec2aD725B`](https://basescan.org/address/0x5af13f848D21F93d5BaFF7D2bA74f29Ec2aD725B) ✅ **Verified**
 
 **PaymentsPlugin:**
 - **Plugin Setup**: [`0xAdE7003521E804d8aA3FD32d6FB3088fa2129882`](https://basescan.org/address/0xAdE7003521E804d8aA3FD32d6FB3088fa2129882)

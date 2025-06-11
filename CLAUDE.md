@@ -13,6 +13,22 @@ PayNest is an Aragon OSx plugin ecosystem for payment infrastructure. The projec
 - **PaymentsPluginSetup**: Plugin installation/permission management for DAOs
 - **PayNestDAOFactory**: Creates DAOs with Admin + PayNest plugins in one transaction
 
+### PayNestDAOFactory Constructor
+
+**IMPORTANT**: The factory now requires 5 parameters:
+
+```solidity
+constructor(
+    AddressRegistry _addressRegistry,    // Username registry
+    DAOFactory _daoFactory,             // Aragon's DAO factory
+    PluginRepo _adminPluginRepo,        // Admin plugin repository
+    PluginRepo _paymentsPluginRepo,     // Payments plugin repository  
+    address _llamaPayFactory            // LlamaPay factory address (NEW)
+)
+```
+
+This ensures the factory knows which LlamaPay factory to use when creating payment streams.
+
 ### Aragon Integration
 
 - Use existing boilerplate contracts as guides (`MyUpgradeablePlugin.sol`, `MyPluginSetup.sol`)
@@ -98,12 +114,12 @@ make verify-sourcify
 - `docs/llamapay-integration-spec.md` - LlamaPay streaming integration
 - `docs/testing-strategy.md` - Comprehensive testing approach
 
-### Implementation Contracts (To Build)
+### Implementation Contracts (Deployed on Base Mainnet)
 
-- `src/AddressRegistry.sol` - Standalone username registry
-- `src/PaymentsPlugin.sol` - Main plugin (use `MyUpgradeablePlugin.sol` as guide)
-- `src/setup/PaymentsPluginSetup.sol` - Plugin setup (use `MyPluginSetup.sol` as guide)
-- `src/factory/PayNestDAOFactory.sol` - DAO creation factory
+- `src/AddressRegistry.sol` - Standalone username registry ✅ **Deployed & Verified**
+- `src/PaymentsPlugin.sol` - Main plugin (UUPS upgradeable) ✅ **Deployed & Verified**
+- `src/setup/PaymentsPluginSetup.sol` - Plugin setup ✅ **Deployed & Verified**
+- `src/factory/PayNestDAOFactory.sol` - DAO creation factory ✅ **Deployed & Verified**
 
 ### Dependencies
 
@@ -157,8 +173,10 @@ make verify-sourcify
 - **Fork Testing**: Real contract integration for production confidence
 - **Builder Patterns**: Use `PaymentsForkBuilder` for fork tests, `PaymentsBuilder` for unit tests
 - **Bulloak Scaffolding**: YAML-driven test structure for consistency
-- **Real Contract Testing**: All 15 fork tests run against live Base mainnet
-- **Test Coverage**: 130 total tests (115 unit + 15 fork) all passing
+- **Real Contract Testing**: All 33 fork tests run against live Base mainnet
+- **Stream Migration**: User-driven migration system for wallet recovery scenarios
+- **Test Coverage**: 213 total tests (130+ unit + 33 fork + 39 invariant) all passing
+- **Invariant Testing**: 33M+ function calls across comprehensive property-based tests
 
 ## Git Workflow
 
@@ -215,13 +233,16 @@ address constant USDC_WHALE = 0x0B0A5886664376F59C351ba3f598C8A8B4D0A6f3;
 ### Testing Commands Reference
 
 ```bash
-# Fast unit tests (mocked) - 115 tests
+# Fast unit tests (mocked) - 130+ tests
 forge test --match-path "./test/*.sol"
 
-# Production fork tests (real contracts) - 15 tests
-forge test --match-contract "PaymentsPluginForkTest"
+# Production fork tests (real contracts) - 33 tests
+forge test --match-contract "*Fork*"
 
-# All tests (mixed) - 130 tests
+# Invariant tests (property-based) - 39 tests
+forge test --match-contract "*Invariant*"
+
+# All tests (mixed) - 213 tests
 forge test
 
 # Always use verbose output for debugging
