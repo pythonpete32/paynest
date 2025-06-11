@@ -1,0 +1,10 @@
+{
+  "network": "base",
+  "chainId": 8453,
+  "deployer": "0x47d80912400ef8f8224531EBEB1ce8f2ACf4b75a",
+  "timestamp": 1749617939,
+  "blockNumber": 31414296,
+  "contracts": {
+    "AddressRegistry": "0x0a7DCbbc427a8f7c2078c618301B447cCF1B3Bc0"
+  }
+}

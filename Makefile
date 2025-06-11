@@ -8,9 +8,13 @@ SHELL:=/bin/bash
 # CONSTANTS
 
 # NOTE: Choose the appropriate deployment script
-DEPLOYMENT_SCRIPT := script/DeploySimple.s.sol:DeploySimpleScript
+# DEPLOYMENT_SCRIPT := script/DeploySimple.s.sol:DeploySimpleScript
 # DEPLOYMENT_SCRIPT := script/DeployDaoWithPlugins.s.sol:DeployDaoWithPluginsScript
 # DEPLOYMENT_SCRIPT := script/DeployViaFactory.s.sol:DeployViaFactoryScript
+DEPLOYMENT_SCRIPT := script/DeployPayNest.s.sol:DeployPayNestScript
+
+# AddressRegistry deployment script
+ADDRESS_REGISTRY_SCRIPT := script/DeployAddressRegistry.s.sol:DeployAddressRegistryScript
 
 SOLC_VERSION := $(shell cat foundry.toml | grep solc | cut -d= -f2 | xargs echo || echo "0.8.28")
 SUPPORTED_VERIFIERS := etherscan blockscout sourcify routescan-mainnet routescan-testnet
@@ -109,11 +113,11 @@ test: export ETHERSCAN_API_KEY=
 
 .PHONY: test
 test: ## Run unit tests, locally
-	forge test $(VERBOSITY) --no-match-path ./test/fork-tests/*
+	forge test $(VERBOSITY) --no-match-path "**/fork-tests/*"
 
 .PHONY: test-fork
 test-fork: ## Run fork tests, using RPC_URL
-	forge test $(VERBOSITY) --match-path ./test/fork-tests/*
+	forge test $(VERBOSITY) --match-contract ".*Fork.*"
 
 test-coverage: report/index.html ## Generate an HTML coverage report under ./report
 	@which open > /dev/null && open report/index.html || true
@@ -191,6 +195,13 @@ predeploy: ## Simulate a protocol deployment
 		--rpc-url $(RPC_URL) \
 		$(VERBOSITY)
 
+.PHONY: predeploy-registry
+predeploy-registry: ## Simulate AddressRegistry deployment
+	@echo "Simulating AddressRegistry deployment"
+	forge script $(ADDRESS_REGISTRY_SCRIPT) \
+		--rpc-url $(RPC_URL) \
+		$(VERBOSITY)
+
 .PHONY: deploy
 deploy: test ## Deploy the protocol, verify the source code and write to ./artifacts
 	@echo "Starting the deployment"
@@ -204,6 +215,20 @@ deploy: test ## Deploy the protocol, verify the source code and write to ./artif
 		--verify \
 		$(VERIFIER_PARAMS) \
 		$(VERBOSITY) 2>&1 | tee -a $(LOGS_FOLDER)/$(DEPLOYMENT_LOG_FILE)
+
+.PHONY: deploy-registry
+deploy-registry: ## Deploy AddressRegistry, verify and save artifacts
+	@echo "Starting AddressRegistry deployment"
+	@mkdir -p $(LOGS_FOLDER) $(ARTIFACTS_FOLDER)
+	forge script $(ADDRESS_REGISTRY_SCRIPT) \
+		--rpc-url $(RPC_URL) \
+		--retries 10 \
+		--delay 8 \
+		--broadcast \
+		$(SLOW_FLAG) \
+		--verify \
+		$(VERIFIER_PARAMS) \
+		$(VERBOSITY) 2>&1 | tee -a $(LOGS_FOLDER)/registry-$(DEPLOYMENT_LOG_FILE)
 
 .PHONY: resume
 resume: test ## Retry the last deployment transactions, verify the code and write to ./artifacts

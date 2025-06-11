@@ -76,6 +76,15 @@ PayNest is an Aragon OSx plugin ecosystem that provides comprehensive payment in
 ### 1. DAO Creation and Setup
 
 ```solidity
+// 0. Factory requires 5 parameters for deployment
+PayNestDAOFactory factory = new PayNestDAOFactory(
+    addressRegistry,     // Global username registry
+    daoFactory,          // Aragon's DAO factory  
+    adminPluginRepo,     // Admin plugin repository
+    paymentsPluginRepo,  // Payments plugin repository
+    llamaPayFactory      // LlamaPay factory address
+);
+
 // 1. Deploy PayNest DAO with factory
 (address dao, address adminPlugin, address paymentsPlugin) = 
     factory.createPayNestDAO(adminAddress, "company-dao");
@@ -295,8 +304,13 @@ Our test `test_UsernameAddressUpdateDuringPayments()` demonstrates this enhanced
 
 ### "stream doesn't exist" Error
 
-**Cause**: Username address was updated after stream creation
-**Solution**: Admin must cancel old stream and create new one
+**Cause**: Username address was updated after stream creation  
+**Solution**: User should migrate their own stream using `migrateStream(username)`
+
+```solidity
+// User migrates their own stream after address change
+paymentsPlugin.migrateStream("alice");
+```
 
 ### Permission Denied Errors
 
@@ -326,9 +340,10 @@ Our test `test_UsernameAddressUpdateDuringPayments()` demonstrates this enhanced
 ### Known Limitations
 
 1. **Single Registry**: One global registry per deployment
-2. **Gas Costs**: Individual payment execution can be expensive
-3. **Manual Migration**: Users must manually trigger stream migration (though UI can help)
+2. **Gas Costs**: Individual payment execution can be expensive  
+3. **Manual Migration**: Users must manually trigger stream migration after address changes
 4. **Migration Timing**: Old address receives final payout during migration
+5. **Network-Specific**: LlamaPay factory address is hardcoded per network
 
 ---
 
