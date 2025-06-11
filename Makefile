@@ -117,7 +117,7 @@ test: ## Run unit tests, locally
 
 .PHONY: test-fork
 test-fork: ## Run fork tests, using RPC_URL
-	forge test $(VERBOSITY) --match-path ./test/fork-tests/*
+	forge test $(VERBOSITY) --match-contract ".*Fork.*"
 
 test-coverage: report/index.html ## Generate an HTML coverage report under ./report
 	@which open > /dev/null && open report/index.html || true

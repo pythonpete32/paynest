@@ -31,8 +31,9 @@ This ensures the factory knows which LlamaPay factory to use when creating payme
 
 ### Aragon Integration
 
-- Use existing boilerplate contracts as guides (`MyUpgradeablePlugin.sol`, `MyPluginSetup.sol`)
-- Plugins inherit from `PluginUUPSUpgradeable` for upgradeable variants
+- PayNest contracts serve as the reference implementation for Aragon OSx plugins
+- `PaymentsPlugin.sol` demonstrates proper `PluginUUPSUpgradeable` inheritance patterns
+- `PaymentsPluginSetup.sol` shows correct plugin installation and permission management
 - `MANAGER_PERMISSION_ID` controls who can call plugin functions
 - `EXECUTE_PERMISSION_ID` allows plugins to execute actions on the DAO
 - Admin plugin provides single-owner control with upgrade path to complex governance
@@ -108,11 +109,12 @@ The hook:
 
 ### PayNest Development
 
-- Use boilerplate contracts as guides - DON'T remove them
-- `MyUpgradeablePlugin.sol` → Reference for PaymentsPlugin structure
-- `MyPluginSetup.sol` → Reference for PaymentsPluginSetup structure
+- PayNest contracts are now the reference implementation for Aragon OSx plugins
+- `PaymentsPlugin.sol` → Reference for UUPS upgradeable plugin architecture
+- `PaymentsPluginSetup.sol` → Reference for plugin setup and permission management
+- `PayNestDAOFactory.sol` → Reference for single-transaction DAO creation with plugins
 - Follow existing Aragon permission patterns with `auth()` modifiers
-- Test using `SimpleBuilder` and `ForkBuilder` patterns
+- Test using `PaymentsBuilder` and `PaymentsForkBuilder` patterns
 
 ## Project Structure
 
@@ -166,14 +168,14 @@ The hook:
 - Use explicit error names that describe the issue
 - Group custom errors at the top of the contract
 - Maintain consistency across all contracts
-- Follow the existing boilerplate patterns in the codebase
+- Follow the existing PayNest contract patterns
 
 ## Key Implementation Notes
 
 ### Contract Development
 
-- Keep boilerplate contracts (`MyUpgradeablePlugin.sol`, `MyPluginSetup.sol`) as references
-- Follow Aragon permission system patterns exactly
+- Use PayNest contracts as reference implementations for new plugins
+- Follow Aragon permission system patterns as demonstrated in `PaymentsPlugin.sol`
 - Use specifications in `docs/` folder for requirements and invariants
 - Implement contracts to match specification behavior, not implementation details
 
@@ -206,11 +208,11 @@ The hook:
 
 #### **PaymentsForkBuilder Design**
 
-- **Pattern**: Uses real DAOFactory and PluginRepoFactory like boilerplate `ForkBuilder`
+- **Pattern**: Uses real DAOFactory and PluginRepoFactory for production-like testing
 - **DAO Creation**: `daoFactory.createDao(daoSettings, installSettings)` with plugin installation
 - **Plugin Repo**: Creates plugin repo with `pluginRepoFactory.createPluginRepoWithFirstVersion()`
 - **Environment**: Requires correct Base mainnet Aragon addresses in `.env` file
-- **Success**: All 15 fork tests passing with official Aragon infrastructure
+- **Success**: All fork tests passing with official Aragon infrastructure
 
 #### **Real Contract Behavior Adaptations**
 
