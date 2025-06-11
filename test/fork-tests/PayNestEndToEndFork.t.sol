@@ -607,7 +607,7 @@ contract PayNestEndToEndForkTest is ForkTestBase {
         vm.warp(currentTime);
         uint256 aliceEmployeeNewBalance = usdc.balanceOf(aliceEmployeeNewAddress);
         uint256 newPayout = paymentsPlugin.requestStreamPayout("alicemobile");
-        
+
         // The payout might be 0 if no time has passed since stream creation
         // So we wait a bit more and try again
         if (newPayout == 0) {
@@ -637,7 +637,7 @@ contract PayNestEndToEndForkTest is ForkTestBase {
             finalPayoutToOldAddress = aliceEmployeeFinalBalance - aliceEmployeeBalanceBeforeMigration;
         }
         console.log("Final payout to old address during migration:", finalPayoutToOldAddress);
-        
+
         // It's valid for the payout to be 0 if the stream was recently withdrawn
         // The important thing is that no funds are lost - they either went to the old address or back to the DAO
         assertTrue(
