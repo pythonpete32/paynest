@@ -94,6 +94,16 @@ make verify-blockscout
 make verify-sourcify
 ```
 
+### Git Hooks
+
+A pre-commit hook is configured to automatically format Solidity files with `forge fmt` before commits. This prevents CI formatting failures by ensuring all committed code follows consistent formatting standards.
+
+The hook:
+- Runs `forge fmt` on staged `.sol` files
+- Adds formatted changes back to the commit automatically
+- Verifies formatting with `forge fmt --check` before allowing the commit
+- Only processes commits that include Solidity files
+
 ## Development Workflow
 
 ### PayNest Development
